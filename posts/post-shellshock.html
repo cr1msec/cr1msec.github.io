@@ -37,37 +37,37 @@
     <div class="eyebrow scramble">cat shellshock.md</div>
     <h1 class="page-title scramble glitch glow-heading">Understanding Shellshock</h1>
     <div class="writeup-meta">
-      <span class="tag">SecConcepts</span><span class="tag">Bash</span><span class="tag">RCE</span>
+      <span class="tag">SecConcepts</span><span class="tag">Bash</span><span class="tag">RCE</span><span class="writeup-date">Published: Sep 2, 2026</span>
     </div>
-    <p class="writeup-summary">A 2014 Bash bug that still roots boxes in 2026. Here's what's actually happening under the hood — not just the payload, but why it works.</p>
+    <p class="writeup-summary">A 2014 Bash bug that still roots boxes today, and why the underlying flaw is still worth understanding.</p>
   </section>
 
   <section class="reveal visible">
     <div class="writeup-body">
 
       <h2>The short version</h2>
-      <p>Shellshock (CVE-2014-6271 and a handful of related CVEs) is a vulnerability in Bash's handling of environment variables. If an attacker can control an environment variable that gets passed to a vulnerable Bash instance, they can smuggle arbitrary shell commands along with it. That's it — no memory corruption, no exotic exploitation chain. Just Bash doing something it never should have done.</p>
+      <p>Shellshock (CVE-2014-6271 and a handful of related CVEs) is a vulnerability in Bash's handling of environment variables. If an attacker can control an environment variable that gets passed to a vulnerable Bash instance, they can smuggle arbitrary shell commands along with it. No memory corruption, no exotic exploitation chain, just Bash doing something it never should have done.</p>
 
       <h2>What Bash was actually doing wrong</h2>
-      <p>Bash supports exporting functions through environment variables — a somewhat obscure feature where a variable's value looks like a function definition. When Bash starts, it scans its environment for variables formatted like this and imports them as callable functions. The bug was in how it parsed those definitions: Bash would parse the function body correctly, but then keep parsing <em>past the end of it</em>, executing whatever trailing text happened to be there as a normal shell command.</p>
+      <p>Bash supports exporting functions through environment variables, a somewhat obscure feature where a variable's value looks like a function definition. When Bash starts, it scans its environment for variables formatted like this and imports them as callable functions. The bug was in how it parsed those definitions: Bash would parse the function body correctly, but then keep parsing <em>past the end of it</em>, executing whatever trailing text happened to be there as a normal shell command.</p>
       <p>A malicious environment variable exploiting this looks like:</p>
       <div class="output-block">() { :; }; echo "this part runs as a real command"</div>
-      <p>The <code>() { :; };</code> part is the "valid" function definition Bash expects. Everything after the semicolon is the payload — and Bash happily executes it.</p>
+      <p>The <code>() { :; };</code> part is the "valid" function definition Bash expects. Everything after the semicolon is the payload, and Bash happily executes it.</p>
 
       <h2>Why CGI scripts were the perfect delivery method</h2>
-      <p>This bug is only dangerous if something lets an attacker control an environment variable that reaches Bash. CGI is a textbook case: when a web server runs a CGI script, it converts HTTP request headers into environment variables so the script can read them. A header like <code>User-Agent</code> becomes an environment variable like <code>HTTP_USER_AGENT</code> — and if that CGI script is a Bash script (or invokes Bash internally), the attacker's header content gets parsed by the vulnerable code.</p>
+      <p>This bug is only dangerous if something lets an attacker control an environment variable that reaches Bash. CGI is a textbook case: when a web server runs a CGI script, it converts HTTP request headers into environment variables so the script can read them. A header like <code>User-Agent</code> becomes an environment variable like <code>HTTP_USER_AGENT</code>, and if that CGI script is a Bash script (or invokes Bash internally), the attacker's header content gets parsed by the vulnerable code.</p>
       <p>That means the entire attack can be delivered through a single crafted HTTP header:</p>
       <div class="cmd-block term-card">
         <div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">curl</div></div>
         <div class="term-body"><div><span class="prompt">$</span> curl -H "User-Agent: () { :; }; echo; echo; /bin/bash -c 'id'" http://target/cgi-bin/vulnerable.sh</div></div>
       </div>
-      <p>No authentication, no complex payload — just a header value shaped to look like a Bash function definition with a command tacked on the end.</p>
+      <p>No authentication, no complex payload, just a header value shaped to look like a Bash function definition with a command tacked on the end.</p>
 
       <h2>Why this still shows up a decade later</h2>
       <p>The patched versions of Bash have been around since 2014, so in production this is genuinely rare now. It shows up constantly in labs and CTFs because it's a clean, self-contained teaching example: one specific parsing bug, one specific delivery mechanism, one clear "aha" moment when you understand why the payload is shaped the way it is. It's less about "this vulnerability is common in the wild" and more about "this is a perfect case study for how environment variable trust boundaries break."</p>
 
       <h2>The actual lesson</h2>
-      <p>Any time user input crosses into an environment variable that gets interpreted by something else — a shell, an interpreter, a templating engine — that's a trust boundary worth being suspicious of. Shellshock is the canonical example, but the underlying pattern (attacker-controlled input landing somewhere it gets re-parsed as code) is the same shape as SSTI, command injection, and a dozen other bug classes. Recognizing the pattern matters more than memorizing the one CVE.</p>
+      <p>Any time user input crosses into an environment variable that gets interpreted by something else (a shell, an interpreter, a templating engine), that's a trust boundary worth being suspicious of. Shellshock is the canonical example, but the underlying pattern (attacker-controlled input landing somewhere it gets re-parsed as code) is the same shape as SSTI, command injection, and a dozen other bug classes. Recognizing the pattern matters more than memorizing the one CVE.</p>
 
       <p style="margin-top:32px;">Saw this exploited end-to-end, including the CGI enumeration that found the vulnerable script in the first place, in the <a href="../writeups/report-shocker.html" style="color:var(--crimson-bright);">Shocker writeup</a>.</p>
 

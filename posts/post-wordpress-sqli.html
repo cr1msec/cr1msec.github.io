@@ -37,20 +37,20 @@
     <div class="eyebrow scramble">cat wordpress-sqli.md</div>
     <h1 class="page-title scramble glitch glow-heading">SQL Injection via WordPress Plugins</h1>
     <div class="writeup-meta">
-      <span class="tag">SecConcepts</span><span class="tag">WordPress</span><span class="tag">SQLi</span>
+      <span class="tag">SecConcepts</span><span class="tag">WordPress</span><span class="tag">SQLi</span><span class="writeup-date">Published: Sep 2, 2026</span>
     </div>
-    <p class="writeup-summary">WordPress core is usually solid. The plugins bolted onto it are a different story — and how BookingPress got popped is a good example of why.</p>
+    <p class="writeup-summary">How a vulnerable WordPress plugin led to a full compromise.</p>
   </section>
 
   <section class="reveal visible">
     <div class="writeup-body">
 
       <h2>Why plugins are the real attack surface</h2>
-      <p>WordPress core has been through enough security scrutiny that finding a raw SQL injection in it directly is rare. Plugins are a different situation entirely — tens of thousands of them, written by developers with wildly varying security awareness, each one able to register its own database queries, AJAX endpoints, and admin-panel functionality. The security of a WordPress install is really the security of its <em>weakest installed plugin</em>, not the security of WordPress itself.</p>
+      <p>WordPress core has been through enough security scrutiny that finding a raw SQL injection in it directly is rare. Plugins are a different situation entirely: tens of thousands of them, written by developers with wildly varying security awareness, each one able to register its own database queries, AJAX endpoints, and admin-panel functionality. The security of a WordPress install is really the security of its <em>weakest installed plugin</em>, not the security of WordPress itself.</p>
 
       <h2>How the vulnerability surfaces</h2>
-      <p>Version fingerprinting is usually the first real lead. WordPress plugins expose their version in predictable places — the plugin's readme file, HTML comments in rendered pages, or REST API responses — and once you have a plugin name and version, checking it against public vulnerability databases is often enough to find an existing, documented issue. That was the case here: a specific version of the BookingPress appointment plugin had a known SQL injection in one of its AJAX handlers.</p>
-      <p>The vulnerable endpoint accepted a parameter that got concatenated directly into a SQL query instead of being passed as a bound parameter — the same root cause behind essentially all SQL injection, just wearing a plugin-specific costume.</p>
+      <p>Version fingerprinting is usually the first real lead. WordPress plugins expose their version in predictable places, including the plugin's readme file, HTML comments in rendered pages, or REST API responses. Once you have a plugin name and version, checking it against public vulnerability databases is often enough to find an existing, documented issue. That was the case here: a specific version of the BookingPress appointment plugin had a known SQL injection in one of its AJAX handlers.</p>
+      <p>The vulnerable endpoint accepted a parameter that got concatenated directly into a SQL query instead of being passed as a bound parameter. Same root cause behind essentially all SQL injection, just wearing a plugin-specific costume.</p>
 
       <h2>What made this one immediately useful</h2>
       <p>An existing Metasploit module already targeted this exact plugin and version:</p>
@@ -58,15 +58,15 @@
         <div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">msfconsole</div></div>
         <div class="term-body"><div><span class="prompt">$</span> use auxiliary/scanner/http/wp_bookingpress_category_services_sqli</div></div>
       </div>
-      <p>Running it against the target dumped the WordPress user table directly — usernames and password hashes, extracted through the injection point without ever touching the login form. That's the practical payoff of SQL injection in a CMS context: it's rarely about a clever one-off query, it's about using the injection to read data the application was never supposed to expose.</p>
+      <p>Running it against the target dumped the WordPress user table directly: usernames and password hashes, extracted through the injection point without ever touching the login form. That's the practical payoff of SQL injection in a CMS context. It's rarely about a clever one-off query; it's about using the injection to read data the application was never supposed to expose.</p>
 
       <h2>Why the hashes weren't the end of it</h2>
-      <p>One of the extracted hashes cracked to a usable password. But that password alone didn't unlock much — the real value came from the fact that people (and, just as often, applications) reuse credentials. Configuration files on the same server, found through separate enumeration, contained FTP and SMTP credentials that traced back to a completely different account. One SQL injection turned into a chain of credential reuse across multiple services, which is a far more common real-world outcome than SQLi leading directly to a shell.</p>
+      <p>One of the extracted hashes cracked to a usable password. That password alone didn't unlock much, but the real value came from the fact that people (and, just as often, applications) reuse credentials. Configuration files on the same server, found through separate enumeration, contained FTP and SMTP credentials that traced back to a completely different account. One SQL injection turned into a chain of credential reuse across multiple services, which is a far more common real-world outcome than SQLi leading directly to a shell.</p>
 
       <h2>The general lesson</h2>
-      <p>For CMS-based targets, fingerprint every plugin, not just the core software — that's usually where the actual vulnerabilities live. And treat any credentials or hashes recovered through SQLi as a starting point rather than an endpoint: the next question is always "what else does this password unlock," because the answer is often "more than you'd expect."</p>
+      <p>For CMS-based targets, fingerprint every plugin, not the core software alone; that's usually where the actual vulnerabilities live. Treat any credentials or hashes recovered through SQLi as a starting point rather than an endpoint. The next question is always what else that password unlocks, and the answer is often more than you'd expect.</p>
 
-      <p style="margin-top:32px;">Saw this played out fully — from plugin fingerprinting through cracked hashes to a credential-reuse chain that ended in root — in the <a href="../writeups/report-metatwo.html" style="color:var(--crimson-bright);">MetaTwo writeup</a>.</p>
+      <p style="margin-top:32px;">Saw this played out fully, from plugin fingerprinting through cracked hashes to a credential-reuse chain that ended in root, in the <a href="../writeups/report-metatwo.html" style="color:var(--crimson-bright);">MetaTwo writeup</a>.</p>
 
     </div>
   </section>

@@ -37,20 +37,20 @@
     <div class="eyebrow scramble">cat sudo-binaries.md</div>
     <h1 class="page-title scramble glitch glow-heading">When a Trusted Binary Turns Against You</h1>
     <div class="writeup-meta">
-      <span class="tag">SecConcepts</span><span class="tag">Sudo</span><span class="tag">PrivEsc</span>
+      <span class="tag">SecConcepts</span><span class="tag">Sudo</span><span class="tag">PrivEsc</span><span class="writeup-date">Published: Sep 2, 2026</span>
     </div>
-    <p class="writeup-summary">Abusing sudo permissions on tools that were never designed to be an attack surface — because they were never designed with sudo in mind at all.</p>
+    <p class="writeup-summary">Abusing sudo permissions on tools that were never designed to be run as root.</p>
   </section>
 
   <section class="reveal visible">
     <div class="writeup-body">
 
       <h2>The trust assumption sudo relies on</h2>
-      <p>Granting passwordless sudo on a specific binary feels like a controlled, minimal permission — "this user can only run <em>this one program</em> as root, nothing else." That framing quietly assumes the program itself has no way to break out of its intended purpose. For a lot of software, that assumption doesn't hold.</p>
+      <p>Granting passwordless sudo on a specific binary feels like a controlled, minimal permission: "this user can only run <em>this one program</em> as root, nothing else." That framing quietly assumes the program itself has no way to break out of its intended purpose. For a lot of software, that assumption doesn't hold.</p>
 
       <h2>Any binary that can run other code is a liability</h2>
-      <p>The danger isn't limited to obviously dangerous tools like <code>bash</code> or <code>python</code>. It extends to anything with a scripting layer, a plugin system, an <code>exec</code>-style function, or a way to shell out to the OS — even tools that look completely unrelated to system administration. Configuration management tools are a good example: many are built on top of a general-purpose language specifically so they can be extended, which means the "extension" mechanism is often just arbitrary code execution with extra steps.</p>
-      <p>If a tool like that is runnable via passwordless sudo, the actual permission being granted isn't "run this specific program" — it's "run arbitrary code as root," just with one layer of indirection in between.</p>
+      <p>The danger isn't limited to obviously dangerous tools like <code>bash</code> or <code>python</code>. It extends to anything with a scripting layer, a plugin system, an <code>exec</code>-style function, or a way to shell out to the OS, even tools that look completely unrelated to system administration. Configuration management tools are a good example: many are built on top of a general-purpose language specifically so they can be extended, which means the "extension" mechanism is often just arbitrary code execution with extra steps.</p>
+      <p>If a tool like that is runnable via passwordless sudo, the actual permission being granted isn't "run this specific program." It's "run arbitrary code as root," just with one layer of indirection in between.</p>
 
       <h2>What this looks like in practice</h2>
       <p>The check that surfaces this is always the same:</p>
@@ -60,15 +60,15 @@
       </div>
       <div class="output-block">User james may run the following commands on this host:
     (root) NOPASSWD: /usr/bin/knife</div>
-      <p>The output tells you <em>what</em> you can run — the actual research step is figuring out <em>whether that thing can execute code</em>. A quick check of a binary's documentation or a search for "<tool name> exec" or "<tool name> shell" is often enough to find a built-in escape hatch that the tool's authors added intentionally, for entirely legitimate reasons, that happens to also be a privilege escalation path when combined with unrestricted sudo access.</p>
+      <p>The output tells you <em>what</em> you can run. The actual research step is figuring out <em>whether that thing can execute code</em>. A quick check of a binary's documentation or a search for "<tool name> exec" or "<tool name> shell" is often enough to find a built-in escape hatch that the tool's authors added intentionally, for entirely legitimate reasons, that happens to also be a privilege escalation path when combined with unrestricted sudo access.</p>
 
       <h2>Why this keeps happening</h2>
-      <p>The people configuring sudoers rules and the people writing the tool itself are almost never the same people making the same threat model. A tool's authors reasonably assume "if you can run this binary, you're already trusted" — they didn't design it to be handed to a semi-trusted user via sudo. The sudoers rule, meanwhile, assumes the binary is "safe" simply because it's not an interpreter by name. Both assumptions are individually defensible and combine into a real gap.</p>
+      <p>The people configuring sudoers rules and the people writing the tool itself are almost never the same people making the same threat model. A tool's authors reasonably assume "if you can run this binary, you're already trusted." They didn't design it to be handed to a semi-trusted user via sudo. The sudoers rule, meanwhile, assumes the binary is "safe" simply because it's not an interpreter by name. Both assumptions are individually defensible and combine into a real gap.</p>
 
       <h2>The general lesson</h2>
-      <p>Don't evaluate a sudo permission by what the binary is <em>called</em> — evaluate it by what the binary is <em>capable of</em>. "It's not bash, so it's fine" is not a security analysis. If there's any code-execution surface reachable from that binary — a plugin system, an eval function, a scripting DSL, a shell-out feature — passwordless sudo on it is functionally equivalent to passwordless sudo on a shell.</p>
+      <p>Don't evaluate a sudo permission by what the binary is <em>called</em>. Evaluate it by what the binary is <em>capable of</em>. "It's not bash, so it's fine" is not a security analysis. If there's any code-execution surface reachable from that binary (a plugin system, an eval function, a scripting DSL, a shell-out feature), passwordless sudo on it is functionally equivalent to passwordless sudo on a shell.</p>
 
-      <p style="margin-top:32px;">Saw this pattern play out directly — a NOPASSWD sudo rule on a tool most people wouldn't think twice about — in the <a href="../writeups/report-knife.html" style="color:var(--crimson-bright);">Knife writeup</a>.</p>
+      <p style="margin-top:32px;">Saw this pattern play out directly, a NOPASSWD sudo rule on a tool most people wouldn't think twice about, in the <a href="../writeups/report-knife.html" style="color:var(--crimson-bright);">Knife writeup</a>.</p>
 
     </div>
   </section>

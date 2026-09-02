@@ -37,10 +37,9 @@
     <div class="eyebrow scramble">cat cap.md</div>
     <h1 class="page-title scramble glitch glow-heading">Cap</h1>
     <div class="writeup-meta">
-      <span class="tag">HTB</span><span class="tag diff easy">Easy</span><span class="tag">FTP</span><span class="tag">Capabilities</span>
+      <span class="tag">HTB</span><span class="tag diff easy">Easy</span><span class="tag">FTP</span><span class="tag">Capabilities</span><span class="writeup-date">Solved: July 26, 2026</span>
     </div>
     <p class="writeup-summary">FTP creds leaked through a web app&#x27;s packet-capture feature, reused over SSH, then a root shell via a Python binary with cap_setuid set.</p>
-    <div class="writeup-date">Solved: July 26, 2026</div>
   </section>
 
   <section class="reveal visible">
@@ -70,7 +69,7 @@ uid=1001(nathan) gid=1001(nathan) groups=1001(nathan)</div>
       <h2>Root</h2>
       <p>The <code>cap_setuid</code> capability could be abused to change the Python process&#x27;s UID to <code>0</code> (root), providing a root shell.</p>
       <h2>Key Takeaways</h2>
-      <ul class="takeaway-list"><li>Enumerate all exposed web functionality, not just the homepage.</li><li>Packet captures can contain sensitive credentials.</li><li>Reused credentials can provide SSH access.</li><li>Always check binaries for Linux capabilities with <code>getcap</code>.</li><li><code>cap_setuid</code> on an interpreter such as Python is a major privilege-escalation opportunity.</li></ul>
+      <ul class="takeaway-list"><li>Enumerate all exposed web functionality, not only the homepage.</li><li>Packet captures can contain sensitive credentials.</li><li>Reused credentials can provide SSH access.</li><li>Always check binaries for Linux capabilities with <code>getcap</code>.</li><li><code>cap_setuid</code> on an interpreter such as Python is a major privilege-escalation opportunity.</li></ul>
     </div>
   </section>
 
