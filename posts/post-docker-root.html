@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docker Group Membership = Root // crimson</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="glow"></div>
+<div class="crt-overlay" aria-hidden="true"></div>
+
+<header class="site">
+  <nav>
+    <div class="logo glitch">~/<span>crimson</span>▋</div>
+    <div class="navlinks">
+      <a href="../index.html">Home</a>
+      <a href="../blog.html" class="active">Blog</a>
+      <a href="../reports.html">Lab Reports</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../aboutme.html">About Me</a>
+    </div>
+    <div class="nav-status"><span class="status-dot"></span>online</div>
+  </nav>
+</header>
+
+<main>
+
+  <section class="page-head reveal visible" style="border-bottom:none;padding-bottom:0;">
+    <a href="../blog.html" class="back-link">← cat blog.md</a>
+    <div class="eyebrow scramble">cat docker-root.md</div>
+    <h1 class="page-title scramble glitch glow-heading">Docker Group Membership = Root</h1>
+    <div class="writeup-meta">
+      <span class="tag">SecConcepts</span><span class="tag">Docker</span><span class="tag">PrivEsc</span>
+    </div>
+    <p class="writeup-summary">Being in the docker group is quietly treated as a minor convenience. It's actually root-equivalent — here's why.</p>
+  </section>
+
+  <section class="reveal visible">
+    <div class="writeup-body">
+
+      <h2>What the docker group is for</h2>
+      <p>By default, controlling Docker requires root, because the Docker daemon runs as root and talks to clients over a socket owned by root. The <code>docker</code> group exists purely as a convenience — add a user to it, and they can run <code>docker</code> commands without typing <code>sudo</code> every time. On the surface that sounds like a scoped, reasonable permission: "this user can manage containers."</p>
+
+      <h2>Why that framing is wrong</h2>
+      <p>Managing containers <em>is</em> managing the host. A member of the docker group can create a new container and freely choose how it's configured — including mounting any path from the host filesystem directly into that container:</p>
+      <div class="cmd-block term-card">
+        <div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">docker</div></div>
+        <div class="term-body"><div><span class="prompt">$</span> docker run --rm -it -u 0 --entrypoint sh -v /:/mnt some-existing-image</div></div>
+      </div>
+      <p>That single command starts a container running as UID 0 inside the container, with the entire host filesystem mounted at <code>/mnt</code>. From there:</p>
+      <div class="cmd-block term-card">
+        <div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">chroot</div></div>
+        <div class="term-body"><div><span class="prompt">$</span> chroot /mnt sh</div></div>
+      </div>
+      <p>...changes the root directory to the mounted host filesystem, effectively operating as root <em>on the actual host</em>, not just inside an isolated container. No exploit, no vulnerability being abused — every step here is Docker working exactly as documented. The docker group simply grants a capability equivalent to root, using entirely intended functionality.</p>
+
+      <h2>Why it's easy to overlook</h2>
+      <p>Docker access often doesn't announce itself. A fresh shell might initially fail to run docker commands at all:</p>
+      <div class="output-block">permission denied while trying to connect to the Docker daemon socket</div>
+      <p>That error can read as "this user has no Docker access" and get dismissed. In practice it frequently just means group membership hasn't been picked up by the current shell session yet — a quick group refresh is enough to activate it:</p>
+      <div class="cmd-block term-card">
+        <div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">newgrp</div></div>
+        <div class="term-body"><div><span class="prompt">$</span> newgrp docker</div></div>
+      </div>
+      <p>The permission was there the whole time; the shell just hadn't caught up to the account's actual group membership yet.</p>
+
+      <h2>Why this doesn't get flagged more often</h2>
+      <p>Docker access gets mentally filed under "developer tooling" rather than "administrative privilege," so it doesn't get the same scrutiny that direct sudo rules or root SSH access would. The group name itself — <code>docker</code>, not <code>admin</code> or <code>wheel</code> — reinforces that framing. But functionally, there's no meaningful difference between "can run any container with any host mount" and "has root."
+
+      <h2>The general lesson</h2>
+      <p>Any mechanism that lets a user control a privileged daemon — Docker, but also things like <code>lxd</code>, certain backup services, or anything else that runs as root and accepts unprivileged-user commands — deserves the same scrutiny as a direct sudo grant, even when the group name sounds harmless. "Convenience" permissions and "privileged" permissions aren't always different things wearing different names.</p>
+
+      <p style="margin-top:32px;">Saw this exploited end-to-end — including the initial foothold that got there in the first place — in the <a href="../writeups/report-kobold.html" style="color:var(--crimson-bright);">Kobold writeup</a>.</p>
+
+    </div>
+  </section>
+
+</main>
+
+<footer class="site" style="padding-top:0;">
+  <div class="foot-bottom" style="max-width:1100px;margin:0 auto;padding:24px;border-top:1px solid var(--border);">
+    <div>crimson © 2026</div>
+    <div><a href="../blog.html" style="color:var(--text-dim);">← back to Blog</a></div>
+  </div>
+</footer>
+
+<script src="../script.js"></script>
+</body>
+</html>

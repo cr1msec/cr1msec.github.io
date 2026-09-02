@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cap // Lab Report // crimson</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="glow"></div>
+<div class="crt-overlay" aria-hidden="true"></div>
+
+<header class="site">
+  <nav>
+    <div class="logo glitch">~/<span>crimson</span>▋</div>
+    <div class="navlinks">
+      <a href="../index.html">Home</a>
+      <a href="../blog.html">Blog</a>
+      <a href="../reports.html" class="active">Lab Reports</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../aboutme.html">About Me</a>
+    </div>
+    <div class="nav-status"><span class="status-dot"></span>online</div>
+  </nav>
+</header>
+
+<main>
+
+  <section class="page-head reveal visible" style="border-bottom:none;padding-bottom:0;">
+    <a href="../reports.html" class="back-link">← ls reports/</a>
+    <div class="eyebrow scramble">cat cap.md</div>
+    <h1 class="page-title scramble glitch glow-heading">Cap</h1>
+    <div class="writeup-meta">
+      <span class="tag">HTB</span><span class="tag diff easy">Easy</span><span class="tag">FTP</span><span class="tag">Capabilities</span>
+    </div>
+    <p class="writeup-summary">FTP creds leaked through a web app&#x27;s packet-capture feature, reused over SSH, then a root shell via a Python binary with cap_setuid set.</p>
+    <div class="writeup-date">Solved: July 26, 2026</div>
+  </section>
+
+  <section class="reveal visible">
+    <div class="writeup-body">
+      <h2>Recon</h2>
+      <p>Started with a basic Nmap scan:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">nmap</div></div><div class="term-body"><div><span class="prompt">$</span> nmap -sS 10.129.13.60</div></div></div>
+      <p>Open ports:</p>
+      <table class="writeup-table"><thead><tr><th>Port</th><th>Service</th></tr></thead><tbody><tr><td>21</td><td>FTP</td></tr><tr><td>22</td><td>SSH</td></tr><tr><td>80</td><td>HTTP</td></tr></tbody></table>
+      <p>The web application exposed several endpoints, including <code>/capture</code>, <code>/ip</code>, and <code>/netstat</code>. The <code>/capture</code> functionality generated a packet capture file, which could then be downloaded.</p>
+      <h2>Credential Discovery</h2>
+      <p>Inspecting the packet capture revealed FTP credentials:</p>
+      <div class="output-block">nathan : <span class="hl">Buck3tH4TF0RM3!</span></div>
+      <p>These credentials also worked for SSH:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">ssh</div></div><div class="term-body"><div><span class="prompt">$</span> ssh nathan@10.129.13.60</div></div></div>
+      <p>After logging in:</p>
+      <div class="output-block">$ whoami
+nathan
+
+$ id
+uid=1001(nathan) gid=1001(nathan) groups=1001(nathan)</div>
+      <h2>Privilege Escalation</h2>
+      <p>While enumerating the web application, <code>app.py</code> contained a Python command that executed <code>tcpdump</code> with elevated privileges. The important discovery was that Python had dangerous Linux capabilities:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">getcap</div></div><div class="term-body"><div><span class="prompt">$</span> getcap /usr/bin/python3.8</div></div></div>
+      <div class="output-block">/usr/bin/python3.8 = <span class="hl">cap_setuid,cap_net_bind_service+eip</span></div>
+      <p><code>cap_setuid</code> allows a process to change its user ID. Since Python can execute arbitrary code, having <code>cap_setuid</code> effectively allows privilege escalation to root.</p>
+      <h2>Root</h2>
+      <p>The <code>cap_setuid</code> capability could be abused to change the Python process&#x27;s UID to <code>0</code> (root), providing a root shell.</p>
+      <h2>Key Takeaways</h2>
+      <ul class="takeaway-list"><li>Enumerate all exposed web functionality, not just the homepage.</li><li>Packet captures can contain sensitive credentials.</li><li>Reused credentials can provide SSH access.</li><li>Always check binaries for Linux capabilities with <code>getcap</code>.</li><li><code>cap_setuid</code> on an interpreter such as Python is a major privilege-escalation opportunity.</li></ul>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site" style="padding-top:0;">
+  <div class="foot-bottom" style="max-width:1100px;margin:0 auto;padding:24px;border-top:1px solid var(--border);">
+    <div>crimson © 2026</div>
+    <div><a href="../reports.html" style="color:var(--text-dim);">← back to Lab Reports</a></div>
+  </div>
+</footer>
+
+<script src="../script.js"></script>
+</body>
+</html>

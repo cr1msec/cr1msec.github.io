@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knife // Lab Report // crimson</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="glow"></div>
+<div class="crt-overlay" aria-hidden="true"></div>
+
+<header class="site">
+  <nav>
+    <div class="logo glitch">~/<span>crimson</span>▋</div>
+    <div class="navlinks">
+      <a href="../index.html">Home</a>
+      <a href="../blog.html">Blog</a>
+      <a href="../reports.html" class="active">Lab Reports</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../aboutme.html">About Me</a>
+    </div>
+    <div class="nav-status"><span class="status-dot"></span>online</div>
+  </nav>
+</header>
+
+<main>
+
+  <section class="page-head reveal visible" style="border-bottom:none;padding-bottom:0;">
+    <a href="../reports.html" class="back-link">← ls reports/</a>
+    <div class="eyebrow scramble">cat knife.md</div>
+    <h1 class="page-title scramble glitch glow-heading">Knife</h1>
+    <div class="writeup-meta">
+      <span class="tag">HTB</span><span class="tag diff easy">Easy</span><span class="tag">Web</span><span class="tag">SQLi</span><span class="tag">Linux PrivEsc</span>
+    </div>
+    <p class="writeup-summary">Knife is an easy Linux machine where an exposed PHP 8.1.0-dev backdoor provides initial access as james. A sudo misconfiguration then allows james to execute Chef's knife utility as root, which can execute Ruby code and provide a root shell.</p>
+    <div class="writeup-date">Solved: July 30, 2026</div>
+  </section>
+
+  <section class="reveal visible">
+    <div class="writeup-body">
+      <h2>Recon</h2>
+      <p>Started with a basic Nmap scan:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">nmap</div></div><div class="term-body"><div><span class="prompt">$</span> nmap -sC -sV -Pn 10.129.15.27</div></div></div>
+      <p>The scan identified two accessible services:</p>
+      <table class="writeup-table"><thead><tr><th>Port</th><th>Service</th><th>Version</th></tr></thead><tbody><tr><td>22</td><td>SSH</td><td>OpenSSH 8.2p1 Ubuntu 4ubuntu0.2</td></tr><tr><td>80</td><td>HTTP</td><td>Apache httpd 2.4.41</td></tr></tbody></table>
+      <p>The target is running Ubuntu Linux with an Apache web server.</p>
+      <h2>Enumeration</h2>
+      <h3>HTTP - TCP 80</h3>
+      <p>Navigating to the website showed a page titled:</p>
+      <div class="output-block">Emergent Medical Idea</div>
+      <p>There were no obvious login pages or useful links.</p>
+      <p>We could further enumerate the web server with directory fuzzing, but the interesting information came from inspecting the HTTP response.</p>
+      <p>The response contained the following header:</p>
+      <div class="output-block">X-Powered-By: PHP/8.1.0-dev</div>
+      <p>The <code>-dev</code> suffix is significant because this specific development version of PHP was distributed with a backdoor.</p>
+      <p>Searching for known vulnerabilities revealed a <span class="hl">PHP 8.1.0-dev User-Agentt remote code execution backdoor</span>. The backdoor allows commands to be executed through a specially crafted HTTP <code>User-Agentt</code> header.</p>
+      <h2>Initial Access</h2>
+      <p>We exploited the PHP 8.1.0-dev backdoor to obtain a shell on the target.</p>
+      <p>The resulting access was as the user:</p>
+      <div class="output-block">james</div>
+      <p>We verified the current user:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">whoami</div></div><div class="term-body"><div><span class="prompt">$</span> whoami</div></div></div>
+      <div class="output-block">james</div>
+      <p>We then located the user flag:</p>
+      <div class="output-block">6dfb7e73c4400d1eb3a78c739974c930</div>
+      <p>At this point, we had successfully obtained user-level access.</p>
+      <h2>Privilege Escalation</h2>
+      <p>With access as <code>james</code>, we checked which commands could be executed with <code>sudo</code>:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">sudo</div></div><div class="term-body"><div><span class="prompt">$</span> sudo -l</div></div></div>
+      <p>The output showed:</p>
+      <div class="output-block">Matching Defaults entries for james on knife:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+
+User james may run the following commands on knife:
+    (root) NOPASSWD: /usr/bin/knife</div>
+      <p>This meant <code>james</code> could execute <code>/usr/bin/knife</code> as <code>root</code> without entering a password.</p>
+      <p>We then inspected the binary:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">ls</div></div><div class="term-body"><div><span class="prompt">$</span> ls -l /usr/bin/knife</div></div></div>
+      <p>It was a symbolic link:</p>
+      <div class="output-block">/usr/bin/knife -&gt; /opt/chef-workstation/bin/knife</div>
+      <p><code>knife</code> is a command-line utility from Chef used to manage Chef infrastructure. It is implemented using Ruby and supports executing Ruby code.</p>
+      <p>This made the <code>NOPASSWD</code> sudo permission particularly interesting.</p>
+      <h2>Root</h2>
+      <p>Since <code>knife</code> can execute Ruby code, we could use its <code>exec</code> functionality to execute a shell.</p>
+      <p>The command is:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">sudo</div></div><div class="term-body"><div><span class="prompt">$</span> sudo knife exec -E 'exec "/bin/sh"'</div></div></div>
+      <p>Because <code>knife</code> was being executed through <code>sudo</code> as <code>root</code>, the resulting shell inherited root privileges.</p>
+      <p>We could then verify our privileges:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">id</div></div><div class="term-body"><div><span class="prompt">$</span> id</div></div></div>
+      <p>The resulting shell had root privileges.</p>
+      <p>The root flag was:</p>
+      <div class="output-block">65624694a835212d40471b89225538c7</div>
+      <h2>Key Takeaways</h2>
+      <ul class="takeaway-list"><li><span class="hl">Inspect HTTP response headers.</span> The <code>X-Powered-By</code> header exposed the unusual <code>PHP/8.1.0-dev</code> version that led to the initial access path.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Development versions can be dangerous.</span> The PHP 8.1.0-dev release contained a backdoor capable of remote command execution.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Always check <code>sudo -l</code>.</span> The <code>james</code> account had passwordless sudo access to <code>/usr/bin/knife</code>.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Understand what privileged binaries can do.</span> <code>knife</code> is a Ruby-based utility capable of executing Ruby code, making the unrestricted sudo permission dangerous.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">A sudo misconfiguration can provide direct root access.</span> No separate kernel or filesystem privilege escalation was necessary.</li></ul>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site" style="padding-top:0;">
+  <div class="foot-bottom" style="max-width:1100px;margin:0 auto;padding:24px;border-top:1px solid var(--border);">
+    <div>crimson © 2026</div>
+    <div><a href="../reports.html" style="color:var(--text-dim);">← back to Lab Reports</a></div>
+  </div>
+</footer>
+
+<script src="../script.js"></script>
+</body>
+</html>

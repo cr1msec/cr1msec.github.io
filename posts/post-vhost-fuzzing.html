@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virtual Host Fuzzing // crimson</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="glow"></div>
+<div class="crt-overlay" aria-hidden="true"></div>
+
+<header class="site">
+  <nav>
+    <div class="logo glitch">~/<span>crimson</span>▋</div>
+    <div class="navlinks">
+      <a href="../index.html">Home</a>
+      <a href="../blog.html" class="active">Blog</a>
+      <a href="../reports.html">Lab Reports</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../aboutme.html">About Me</a>
+    </div>
+    <div class="nav-status"><span class="status-dot"></span>online</div>
+  </nav>
+</header>
+
+<main>
+
+  <section class="page-head reveal visible" style="border-bottom:none;padding-bottom:0;">
+    <a href="../blog.html" class="back-link">← cat blog.md</a>
+    <div class="eyebrow scramble">cat vhost-fuzzing.md</div>
+    <h1 class="page-title scramble glitch glow-heading">Virtual Host Fuzzing</h1>
+    <div class="writeup-meta">
+      <span class="tag">Method</span><span class="tag">Web</span><span class="tag">Enumeration</span>
+    </div>
+    <p class="writeup-summary">The real attack surface is often invisible from the main site. Here's why, and how to actually find it.</p>
+  </section>
+
+  <section class="reveal visible">
+    <div class="writeup-body">
+
+      <h2>One IP, multiple websites</h2>
+      <p>A single web server can host several completely different websites on the same IP address and port. Which one you see depends on the <code>Host</code> header your request sends — the server reads that header and routes you to the matching virtual host configuration. If you just visit an IP address or the "obvious" hostname directly, you only ever see whichever site is configured as the default.</p>
+
+      <h2>Why this matters offensively</h2>
+      <p>Directory brute-forcing (finding hidden paths on one known site) is a familiar step in most enumeration workflows. Virtual host fuzzing is the same idea applied one level higher — instead of asking "what hidden pages exist on this site," it asks "what other sites exist on this server that I haven't found yet." The main site can be completely locked down and give up nothing interesting, while a second, undiscovered vhost on the same box is running an entirely different — and much less hardened — application.</p>
+
+      <h2>What actually tips you off</h2>
+      <p>A wildcard TLS certificate is one of the strongest signals. A certificate issued for <code>*.example.com</code> instead of just <code>example.com</code> is the server operator telling you, indirectly, that more than one subdomain is expected to exist. That's a direct invitation to go looking for what those subdomains actually are.</p>
+
+      <h2>How the fuzzing works</h2>
+      <p>The technique sends the same request to the same IP repeatedly, changing only the <code>Host</code> header each time — checking which values produce a different response than the default site:</p>
+      <div class="cmd-block term-card">
+        <div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">ffuf</div></div>
+        <div class="term-body"><div><span class="prompt">$</span> ffuf -u https://target/ -H "Host: FUZZ.target.htb" -w subdomains.txt -fs BASELINE_SIZE</div></div>
+      </div>
+      <p>The <code>-fs</code> flag filters out responses matching the default site's response size, so what's left in the results are the Host header values that actually produced something different — real, distinct virtual hosts the server is willing to route to.</p>
+
+      <h2>Why the found subdomain is often the actual target</h2>
+      <p>The main domain is frequently the polished, public-facing marketing site — exactly the part most likely to have received security attention. A subdomain like <code>internal-tool.target.htb</code> or <code>staging.target.htb</code>, found only through fuzzing, is far more likely to be an internal application, an admin panel, or a dev/staging deployment that was never meant to be discoverable — and treated with correspondingly less care.</p>
+
+      <h2>The general lesson</h2>
+      <p>"I checked the website and there's nothing there" usually means "I checked <em>one</em> website hosted at that IP." Wildcard certificates, unusual DNS records, or even just a server that seems oddly locked-down for how little it does are all reasons to ask what else might be sharing that infrastructure — and vhost fuzzing is the direct way to find out.</p>
+
+      <p style="margin-top:32px;">Saw this find the actual attack surface directly — a wildcard cert leading to subdomain enumeration that uncovered the real vulnerable service — in the <a href="../writeups/report-devvortex.html" style="color:var(--crimson-bright);">Devvortex writeup</a>, and again in the <a href="../writeups/report-kobold.html" style="color:var(--crimson-bright);">Kobold writeup</a>.</p>
+
+    </div>
+  </section>
+
+</main>
+
+<footer class="site" style="padding-top:0;">
+  <div class="foot-bottom" style="max-width:1100px;margin:0 auto;padding:24px;border-top:1px solid var(--border);">
+    <div>crimson © 2026</div>
+    <div><a href="../blog.html" style="color:var(--text-dim);">← back to Blog</a></div>
+  </div>
+</footer>
+
+<script src="../script.js"></script>
+</body>
+</html>

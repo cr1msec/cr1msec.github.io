@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Methodology // crimson</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="glow"></div>
+<div class="crt-overlay" aria-hidden="true"></div>
+
+<header class="site">
+  <nav>
+    <div class="logo glitch">~/<span>crimson</span>▋</div>
+    <div class="navlinks">
+      <a href="index.html">Home</a>
+      <a href="blog.html">Blog</a>
+      <a href="reports.html">Lab Reports</a>
+      <a href="methodology.html" class="active">Methodology</a>
+      <a href="projects.html">Projects</a>
+      <a href="aboutme.html">About Me</a>
+    </div>
+    <div class="nav-status"><span class="status-dot"></span>online</div>
+  </nav>
+</header>
+
+<main>
+
+  <section class="page-head reveal visible" style="border-bottom:none;padding-bottom:0;">
+    <div class="eyebrow scramble">cat methodology.md</div>
+    <h1 class="page-title scramble glitch glow-heading">Methodology</h1>
+    <p class="section-sub">Not a machine writeup — the actual process behind one. Structured after public CPTS-style methodology (credit at the bottom).</p>
+  </section>
+
+  <section class="reveal">
+    <div class="eyebrow">HOW I APPROACH A NEW BOX</div>
+    <h2>Recon to root, in order</h2>
+    <div class="method-wrap">
+      <div class="method-steps">
+        <div class="mstep"><div class="idx">01</div><div class="body"><b>Full port scan</b><span>Nmap with service/version detection first. Non-standard ports are worth noting before enumeration even starts.</span></div></div>
+        <div class="mstep"><div class="idx">02</div><div class="body"><b>Web enumeration</b><span>Directory brute-force with ffuf/gobuster, check response headers, check for subdomains/vhosts. The real attack surface is often invisible from the main site alone.</span></div></div>
+        <div class="mstep"><div class="idx">03</div><div class="body"><b>Fingerprint everything</b><span>CMS version, server headers, software versions. Exact version numbers are what turn a vague hunch into a known CVE.</span></div></div>
+        <div class="mstep"><div class="idx">04</div><div class="body"><b>Check for known vulnerabilities</b><span>Match fingerprinted versions against public CVEs/exploits before trying anything custom.</span></div></div>
+        <div class="mstep"><div class="idx">05</div><div class="body"><b>Get a foothold</b><span>Exploit, land a shell, stabilize it. Grab the user flag to confirm real access before moving on.</span></div></div>
+        <div class="mstep"><div class="idx">06</div><div class="body"><b>Enumerate as the new user</b><span><code>sudo -l</code> first, always. Then SUID binaries, capabilities (<code>getcap</code>), cron jobs, config files, and any credential-management tools present.</span></div></div>
+      </div>
+      <div class="term-card">
+        <div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">first_checks.sh</div></div>
+        <div class="term-body">
+          <div><span class="prompt">$</span> nmap -sC -sV -Pn TARGET</div>
+          <div><span class="prompt">$</span> ffuf -u http://TARGET/FUZZ -w raft-medium.txt</div>
+          <div><span class="prompt">$</span> whatweb http://TARGET</div>
+          <div><span class="prompt">$</span> sudo -l</div>
+          <div><span class="prompt">$</span> getcap -r / 2&gt;/dev/null</div>
+          <div><span class="prompt">$</span> find / -perm -4000 2&gt;/dev/null</div>
+          <div style="color:var(--text-faint);margin-top:8px;">// the six lines I run on nearly every box</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="reveal">
+    <div class="eyebrow">PRIVESC CHECKLIST</div>
+    <h2>What I check first, and why</h2>
+    <p class="section-sub">Roughly in this order, because they're cheap to check and catch the most common misconfigurations first.</p>
+    <ul class="takeaway-list">
+      <li><span class="hl">sudo -l</span> — passwordless sudo on a binary that can spawn a shell or run arbitrary code is one of the most common paths to root.</li>
+      <li><span class="hl">Linux capabilities</span> (<code>getcap -r / 2>/dev/null</code>) — a binary with <code>cap_setuid</code> set is effectively a root shell in disguise.</li>
+      <li><span class="hl">Credential reuse</span> — passwords or hashes found in one place (config files, database dumps, packet captures) almost always work somewhere else.</li>
+      <li><span class="hl">SUID binaries</span> (<code>find / -perm -4000</code>) — always worth a pass, even when nothing obvious turns up immediately.</li>
+      <li><span class="hl">Direct RCE as root</span> — sometimes there's no separate privesc step at all; the initial exploit lands as root outright.</li>
+    </ul>
+  </section>
+
+  <section class="reveal">
+    <div class="eyebrow">FULL FIELD REFERENCE</div>
+    <h2>The broader checklist I'm studying toward</h2>
+    <p class="section-sub">The fuller methodology used across real engagements and HTB's CPTS-style curriculum — the map of where this is heading, not just what's already been proven.</p>
+
+    <div class="ref-phase">
+      <h4>WEB APPLICATION ATTACKS</h4>
+      <div class="pill-row">
+        <span class="pill">SQL Injection</span><span class="pill">XSS</span><span class="pill">SSTI</span>
+        <span class="pill">SSRF</span><span class="pill">LFI / RFI</span><span class="pill">Command Injection</span>
+        <span class="pill">File Upload Abuse</span><span class="pill">IDOR</span><span class="pill">XXE</span>
+        <span class="pill">HTTP Verb Tampering</span><span class="pill">Auth Bypass</span><span class="pill">Login Brute Forcing</span>
+      </div>
+    </div>
+
+    <div class="ref-phase">
+      <h4>COMMON PLATFORMS &amp; SERVICES</h4>
+      <div class="pill-row">
+        <span class="pill">WordPress</span><span class="pill">Joomla</span><span class="pill">Drupal</span>
+        <span class="pill">Jenkins</span><span class="pill">GitLab</span><span class="pill">SMB</span>
+        <span class="pill">NFS</span><span class="pill">FTP</span><span class="pill">SSH</span>
+        <span class="pill">RDP / WinRM</span><span class="pill">SMTP</span><span class="pill">DNS</span>
+        <span class="pill">LDAP</span><span class="pill">MSSQL / MySQL</span>
+      </div>
+    </div>
+
+    <div class="ref-phase">
+      <h4>LINUX PRIVILEGE ESCALATION</h4>
+      <div class="pill-row">
+        <span class="pill learning">Sudo Abuse</span><span class="pill learning">SUID / GUID</span>
+        <span class="pill learning">Capabilities</span><span class="pill learning">Cron Jobs</span>
+        <span class="pill learning">$PATH Abuse</span><span class="pill learning">Wildcard Injection</span>
+        <span class="pill learning">NFS no_root_squash</span><span class="pill learning">Kernel Exploits</span>
+        <span class="pill learning">Docker Socket Abuse</span><span class="pill learning">Writable Services</span>
+      </div>
+    </div>
+
+    <div class="ref-phase">
+      <h4>ACTIVE DIRECTORY &amp; WINDOWS</h4>
+      <div class="pill-row">
+        <span class="pill learning">Kerberoasting</span><span class="pill learning">ASREPRoasting</span>
+        <span class="pill learning">LLMNR / NBT-NS Poisoning</span><span class="pill learning">ACL Abuse</span>
+        <span class="pill learning">GPO Abuse</span><span class="pill learning">Password Spraying</span>
+        <span class="pill learning">DCSync</span><span class="pill learning">PetitPotam</span>
+        <span class="pill learning">noPac</span><span class="pill learning">UAC Bypass</span>
+        <span class="pill learning">Access Token Abuse</span><span class="pill learning">Unquoted Service Paths</span>
+      </div>
+    </div>
+
+    <div class="ref-phase">
+      <h4>PIVOTING, TRANSFER &amp; PILLAGING</h4>
+      <div class="pill-row">
+        <span class="pill learning">SSH Tunneling</span><span class="pill learning">Chisel</span>
+        <span class="pill learning">Ligolo-ng</span><span class="pill learning">Credential Hunting</span>
+        <span class="pill learning">SAM / NTDS.dit Dumping</span><span class="pill learning">Browser Cookie Stealing</span>
+      </div>
+    </div>
+
+    <div class="ref-phase">
+      <h4>TOOLS I REACH FOR</h4>
+      <div class="pill-row">
+        <span class="pill">nmap</span><span class="pill">ffuf</span><span class="pill">gobuster</span>
+        <span class="pill">whatweb</span><span class="pill">curl</span><span class="pill">Metasploit</span>
+        <span class="pill">mysql client</span><span class="pill">John the Ripper</span><span class="pill">hashcat</span>
+        <span class="pill">netcat</span><span class="pill">Burp Suite</span>
+      </div>
+      <div class="ref-note" style="margin-top:14px;">On the study list: BloodHound, NetExec, Mimikatz, Rubeus, WinPEAS, Evil-WinRM, SQLmap.</div>
+    </div>
+
+    <div class="credit-line">
+      Structure and Active Directory / Windows reference sections informed by Bruno Rocha Moura's public write-up on the HTB CPTS methodology —
+      <a href="https://www.brunorochamoura.com/posts/cpts-experience/" target="_blank" rel="noopener">brunorochamoura.com</a>.
+    </div>
+  </section>
+
+</main>
+
+<footer class="site" style="padding-top:0;">
+  <div class="foot-bottom" style="max-width:1100px;margin:0 auto;padding:24px;border-top:1px solid var(--border);">
+    <div>crimson © 2026</div>
+    <div><a href="index.html" style="color:var(--text-dim);">← back home</a></div>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

