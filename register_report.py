@@ -22,6 +22,7 @@ first.
 
 import sys, re, html
 from pathlib import Path
+from datetime import datetime
 
 ALLOWED_TAGS = {
     'web', 'sqli', 'ssti', 'ssrf', 'lfi', 'rfi', 'file upload',
@@ -51,10 +52,62 @@ def extract_meta(report_html: str):
             if t.lower() != 'htb':
                 tags.append(t)
 
-    date_m = re.search(r'<div class="writeup-date">Solved:\s*(.*?)</div>', report_html, re.DOTALL)
+    date_m = re.search(r'class="writeup-date">Solved:\s*(.*?)</(?:div|span)>', report_html, re.DOTALL)
     date = html.unescape(date_m.group(1).strip()) if date_m else 'date not set'
 
     return title, difficulty, tags, date
+
+
+def parse_report_date(date_str: str):
+    try:
+        return datetime.strptime(date_str.strip(), '%B %d, %Y')
+    except ValueError:
+        return datetime.min  # unparseable/missing dates sort to the bottom
+
+
+def find_matching_close_div(text: str, open_tag_pos: int, open_tag_len: int) -> int:
+    """Given the position right after an opening <div ...> tag, walk forward counting
+    nested <div>/</div> tags to find the index right after the matching closing </div>."""
+    pos = open_tag_pos + open_tag_len
+    depth = 1
+    while depth > 0:
+        next_open = text.find('<div', pos)
+        next_close = text.find('</div>', pos)
+        if next_close == -1:
+            raise ValueError('unbalanced HTML: no matching </div> found')
+        if next_open != -1 and next_open < next_close:
+            depth += 1
+            pos = next_open + 4
+        else:
+            depth -= 1
+            pos = next_close + len('</div>')
+    return pos
+
+
+def resort_card_grid(reports_html: str) -> str:
+    """Re-sort every <a class="report-card"> inside <div class="card-grid"> by its
+    report-date, newest first, using a depth-aware match so nested divs inside each
+    card never confuse the boundary detection."""
+    marker = '<div class="card-grid">'
+    start = reports_html.find(marker)
+    if start == -1:
+        return reports_html
+    inner_start = start + len(marker)
+    end = find_matching_close_div(reports_html, start, len(marker))
+    inner_end = end - len('</div>')
+    inner = reports_html[inner_start:inner_end]
+
+    cards = re.findall(r'<a href="[^"]*"[^>]*class="report-card"[^>]*>.*?</a>', inner, re.DOTALL)
+    if not cards:
+        return reports_html
+
+    def card_date(card):
+        m = re.search(r'<div class="report-date">(.*?)</div>', card)
+        return parse_report_date(html.unescape(m.group(1))) if m else datetime.min
+
+    cards_sorted = sorted(cards, key=card_date, reverse=True)
+    new_inner = '\n\n' + '\n\n'.join('      ' + c for c in cards_sorted) + '\n\n    '
+    return reports_html[:inner_start] + new_inner + reports_html[inner_end:]
 
 
 def update_reports_page(reports_path: Path, href: str, slug: str, difficulty: str, title: str, tags: list, date: str):
@@ -95,6 +148,7 @@ def update_reports_page(reports_path: Path, href: str, slug: str, difficulty: st
         text = text[:insert_at] + '\n\n' + card_html + text[insert_at:]
         action = 'added'
 
+    text = resort_card_grid(text)
     reports_path.write_text(text, encoding='utf-8')
     return action
 
@@ -161,11 +215,34 @@ def update_homepage(index_path: Path, reports_path: Path):
     return True
 
 
+def sync_only(reports_path: Path):
+    """Re-sort reports.html by date and re-sync the homepage, without registering
+    a new writeup. Use this after any manual edit to reports.html."""
+    if not reports_path.exists():
+        print(f"File not found: {reports_path}")
+        sys.exit(1)
+    text = reports_path.read_text(encoding='utf-8-sig')
+    text = resort_card_grid(text)
+    reports_path.write_text(text, encoding='utf-8')
+    print("\u2714 re-sorted reports.html by date")
+
+    index_path = reports_path.parent / 'index.html'
+    if update_homepage(index_path, reports_path):
+        print("\u2714 synced homepage stats + activity panel")
+    else:
+        print("\u26a0  couldn't find index.html next to reports.html")
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python3 register_report.py <path-to-report.html>")
+        print("       python3 register_report.py --sync   (re-sort + re-sync without a new writeup)")
         print("e.g.:  python3 register_report.py writeups/report-knife.html")
         sys.exit(1)
+
+    if sys.argv[1] == '--sync':
+        sync_only(Path('reports.html'))
+        return
 
     report_path = Path(sys.argv[1])
     if not report_path.exists():

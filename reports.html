@@ -35,7 +35,7 @@
   <section class="page-head reveal visible" style="border-bottom:none;padding-bottom:0;">
     <div class="eyebrow scramble">ls reports/</div>
     <h1 class="page-title scramble glitch glow-heading">Lab Reports</h1>
-    <p class="section-sub">Machine and CTF writeups — not just "I solved it," but how I got there: recon, enumeration, initial access, escalation.</p>
+    <p class="section-sub">Writeups of HTB machines I've completed — recon, enumeration, initial access, privilege escalation.</p>
   </section>
 
   <section class="reveal">
@@ -63,12 +63,73 @@
         <button class="chip" data-filter-type="tag" data-value="rce">RCE</button>
         <button class="chip" data-filter-type="tag" data-value="smb">SMB</button>
         <button class="chip" data-filter-type="tag" data-value="sqli">SQLi</button>
+        <button class="chip" data-filter-type="tag" data-value="ssh">SSH</button>
         <button class="chip" data-filter-type="tag" data-value="web">Web</button>
         <button class="chip" data-filter-type="tag" data-value="wordpress">WordPress</button>
       </div>
     </div>
     <div class="search-empty" id="reportSearchEmpty">no matches — try a different machine name, tag, or difficulty</div>
     <div class="card-grid">
+
+      <a href="writeups/report-devvortex.html" class="report-card" data-difficulty="easy" data-tags="enumeration,api,web,linux privesc">
+        <div class="report-top">
+          <div class="report-tags"><span class="tag">HTB</span><span class="tag diff easy">Easy</span></div>
+          <div class="report-title">Devvortex</div>
+          <div class="report-date">August 30, 2026</div>
+        </div>
+        <div class="report-code">┌──(crimson㉿kali)-[~/htb/Easy]<br><span class="p1">└─$</span> your-command-here</div>
+        <div class="report-foot"><span>Enumeration · API</span><span class="foot-right"><span class="root-status">ROOT</span><span class="open">open →</span></span></div>
+      </a>
+
+      <a href="writeups/report-kobold.html" class="report-card" data-difficulty="easy" data-tags="rce,enumeration,misconfiguration">
+        <div class="report-top">
+          <div class="report-tags"><span class="tag">HTB</span><span class="tag diff easy">Easy</span></div>
+          <div class="report-title">Kobold</div>
+          <div class="report-date">August 15, 2026</div>
+        </div>
+        <div class="report-code">┌──(crimson㉿kali)-[~/htb/Easy]<br><span class="p1">└─$</span> your-command-here</div>
+        <div class="report-foot"><span>RCE · Enumeration</span><span class="foot-right"><span class="root-status">ROOT</span><span class="open">open →</span></span></div>
+      </a>
+
+      <a href="writeups/report-shocker.html" class="report-card" data-difficulty="easy" data-tags="enumeration,rce,linux privesc">
+        <div class="report-top">
+          <div class="report-tags"><span class="tag">HTB</span><span class="tag diff easy">Easy</span></div>
+          <div class="report-title">Shocker</div>
+          <div class="report-date">July 30, 2026</div>
+        </div>
+        <div class="report-code">┌──(crimson㉿kali)-[~/htb/Easy]<br><span class="p1">└─$</span> your-command-here</div>
+        <div class="report-foot"><span>Enumeration · RCE</span><span class="foot-right"><span class="root-status">ROOT</span><span class="open">open →</span></span></div>
+      </a>
+
+      <a href="writeups/report-knife.html" class="report-card" data-difficulty="easy" data-tags="web,sqli,linux privesc">
+        <div class="report-top">
+          <div class="report-tags"><span class="tag">HTB</span><span class="tag diff easy">Easy</span></div>
+          <div class="report-title">Knife</div>
+          <div class="report-date">July 30, 2026</div>
+        </div>
+        <div class="report-code">┌──(crimson㉿kali)-[~/htb/Easy]<br><span class="p1">└─$</span> your-command-here</div>
+        <div class="report-foot"><span>Web · SQLi</span><span class="foot-right"><span class="root-status">ROOT</span><span class="open">open →</span></span></div>
+      </a>
+
+      <a href="writeups/report-lame.html" class="report-card" data-difficulty="easy" data-tags="ftp,smb,rce">
+        <div class="report-top">
+          <div class="report-tags"><span class="tag">HTB</span><span class="tag diff easy">Easy</span></div>
+          <div class="report-title">Lame</div>
+          <div class="report-date">July 29, 2026</div>
+        </div>
+        <div class="report-code">┌──(crimson㉿kali)-[~/htb/Easy]<br><span class="p1">└─$</span> your-command-here</div>
+        <div class="report-foot"><span>FTP · SMB</span><span class="foot-right"><span class="root-status">ROOT</span><span class="open">open →</span></span></div>
+      </a>
+
+      <a href="writeups/report-metatwo.html" class="report-card" data-difficulty="easy" data-tags="wordpress,sqli,credential abuse">
+        <div class="report-top">
+          <div class="report-tags"><span class="tag">HTB</span><span class="tag diff easy">Easy</span></div>
+          <div class="report-title">MetaTwo</div>
+          <div class="report-date">July 29, 2026</div>
+        </div>
+        <div class="report-code">┌──(crimson㉿kali)-[~/htb/Easy]<br><span class="p1">└─$</span> your-command-here</div>
+        <div class="report-foot"><span>WordPress · SQLi</span><span class="foot-right"><span class="root-status">ROOT</span><span class="open">open →</span></span></div>
+      </a>
 
       <a href="writeups/report-orion.html" class="report-card" data-difficulty="easy" data-tags="rce,ssh,credential abuse">
         <div class="report-top">
@@ -90,66 +151,9 @@
         <div class="report-foot"><span>FTP · Capabilities</span><span class="foot-right"><span class="root-status">ROOT</span><span class="open">open →</span></span></div>
       </a>
 
-                  <a href="writeups/report-kobold.html" class="report-card" data-difficulty="easy" data-tags="rce,enumeration,misconfiguration">
-        <div class="report-top">
-          <div class="report-tags"><span class="tag">HTB</span><span class="tag diff easy">Easy</span></div>
-          <div class="report-title">Kobold</div>
-          <div class="report-date">August 15, 2026</div>
-        </div>
-        <div class="report-code">┌──(crimson㉿kali)-[~/htb/Easy]<br><span class="p1">└─$</span> your-command-here</div>
-        <div class="report-foot"><span>RCE · Enumeration</span><span class="foot-right"><span class="root-status">ROOT</span><span class="open">open →</span></span></div>
-      </a>
-
-            <a href="writeups/report-devvortex.html" class="report-card" data-difficulty="easy" data-tags="enumeration,api,web,linux privesc">
-        <div class="report-top">
-          <div class="report-tags"><span class="tag">HTB</span><span class="tag diff easy">Easy</span></div>
-          <div class="report-title">Devvortex</div>
-          <div class="report-date">August 30, 2026</div>
-        </div>
-        <div class="report-code">┌──(crimson㉿kali)-[~/htb/Easy]<br><span class="p1">└─$</span> your-command-here</div>
-        <div class="report-foot"><span>Enumeration · API</span><span class="foot-right"><span class="root-status">ROOT</span><span class="open">open →</span></span></div>
-      </a>
-
-            <a href="writeups/report-shocker.html" class="report-card" data-difficulty="easy" data-tags="enumeration,rce,linux privesc">
-        <div class="report-top">
-          <div class="report-tags"><span class="tag">HTB</span><span class="tag diff easy">Easy</span></div>
-          <div class="report-title">Shocker</div>
-          <div class="report-date">July 30, 2026</div>
-        </div>
-        <div class="report-code">┌──(crimson㉿kali)-[~/htb/Easy]<br><span class="p1">└─$</span> your-command-here</div>
-        <div class="report-foot"><span>Enumeration · RCE</span><span class="foot-right"><span class="root-status">ROOT</span><span class="open">open →</span></span></div>
-      </a>
-
-            <a href="writeups/report-knife.html" class="report-card" data-difficulty="easy" data-tags="web,sqli,linux privesc">
-        <div class="report-top">
-          <div class="report-tags"><span class="tag">HTB</span><span class="tag diff easy">Easy</span></div>
-          <div class="report-title">Knife</div>
-          <div class="report-date">July 30, 2026</div>
-        </div>
-        <div class="report-code">┌──(crimson㉿kali)-[~/htb/Easy]<br><span class="p1">└─$</span> your-command-here</div>
-        <div class="report-foot"><span>Web · SQLi</span><span class="foot-right"><span class="root-status">ROOT</span><span class="open">open →</span></span></div>
-      </a>
-
-            <a href="writeups/report-lame.html" class="report-card" data-difficulty="easy" data-tags="ftp,smb,rce">
-        <div class="report-top">
-          <div class="report-tags"><span class="tag">HTB</span><span class="tag diff easy">Easy</span></div>
-          <div class="report-title">Lame</div>
-          <div class="report-date">July 29, 2026</div>
-        </div>
-        <div class="report-code">┌──(crimson㉿kali)-[~/htb/Easy]<br><span class="p1">└─$</span> your-command-here</div>
-        <div class="report-foot"><span>FTP · SMB</span><span class="foot-right"><span class="root-status">ROOT</span><span class="open">open →</span></span></div>
-      </a>
-
-            <a href="writeups/report-metatwo.html" class="report-card" data-difficulty="easy" data-tags="wordpress,sqli,credential abuse">
-        <div class="report-top">
-          <div class="report-tags"><span class="tag">HTB</span><span class="tag diff easy">Easy</span></div>
-          <div class="report-title">MetaTwo</div>
-          <div class="report-date">July 29, 2026</div>
-        </div>
-        <div class="report-code">┌──(crimson㉿kali)-[~/htb/Easy]<br><span class="p1">└─$</span> your-command-here</div>
-        <div class="report-foot"><span>WordPress · SQLi</span><span class="foot-right"><span class="root-status">ROOT</span><span class="open">open →</span></span></div>
-      </a>
-
+    </div>
+    <div class="reports-toggle-wrap" id="reportsToggleWrap">
+      <button class="chip" id="reportsToggleBtn" style="padding:8px 20px;font-size:12px;">Show More ▾</button>
     </div>
     <p class="section-sub" style="margin-top:32px;">More writeups coming as machines get rooted.</p>
   </section>

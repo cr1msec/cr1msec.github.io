@@ -155,13 +155,30 @@ function wireReportFilters(){
   const cards = Array.from(document.querySelectorAll('.report-card'));
   const emptyEl = document.getElementById('reportSearchEmpty');
   const chips = Array.from(document.querySelectorAll('.chip'));
+  const cardGrid = document.querySelector('.card-grid');
+  const toggleWrap = document.getElementById('reportsToggleWrap');
+  const toggleBtn = document.getElementById('reportsToggleBtn');
   if(!cards.length) return;
 
   let activeDifficulty = null;
   let activeTag = null;
+  let manuallyExpanded = false;
+
+  // pagination: only show the "Show More" button if there are more than 6 cards
+  if(cards.length > 6 && toggleWrap){
+    toggleWrap.classList.add('visible');
+  }
+  if(toggleBtn && cardGrid){
+    toggleBtn.addEventListener('click', () => {
+      manuallyExpanded = !manuallyExpanded;
+      cardGrid.classList.toggle('show-all', manuallyExpanded);
+      toggleBtn.textContent = manuallyExpanded ? 'Show Less ▴' : 'Show More ▾';
+    });
+  }
 
   function applyFilters(){
     const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const filterActive = !!q || !!activeDifficulty || !!activeTag;
     let visibleCount = 0;
     cards.forEach(card => {
       const matchesSearch = !q || card.textContent.toLowerCase().includes(q);
@@ -173,6 +190,9 @@ function wireReportFilters(){
       if(visible) visibleCount++;
     });
     if(emptyEl) emptyEl.style.display = visibleCount === 0 ? 'block' : 'none';
+    // while a filter/search is active, bypass the 6-card pagination limit entirely
+    if(cardGrid) cardGrid.classList.toggle('show-all', filterActive || manuallyExpanded);
+    if(toggleWrap) toggleWrap.style.display = (filterActive || cards.length <= 6) ? 'none' : '';
   }
 
   if(searchInput) searchInput.addEventListener('input', applyFilters);
